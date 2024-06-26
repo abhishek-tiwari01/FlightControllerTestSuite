@@ -63,6 +63,12 @@ sudo apt install git
    ```
    sudo ./setup.sh
    ```
+Also, Install following pip packages:
+```
+pip3 install PyYAML mavproxy jinja2 weasyprint pyserial colorama pymavlink
+export PATH="$PATH:/root/.local/bin"
+source ~/.bashrc
+```
 
 3. **Test Environment Setup**:
 **Hardware Connections**
