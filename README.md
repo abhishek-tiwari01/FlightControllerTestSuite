@@ -15,7 +15,7 @@ The structure includes:
 - **Modular Design**: Designed to be modular, allowing testers to add new tests as needed without affecting existing functionality.
 
 ## Repository Structure
-
+```
 FlightControllerTestSuite/
 
    ├── firmware/ # Firmware files and scripts
@@ -36,7 +36,7 @@ FlightControllerTestSuite/
    │ └── Arduino
    │     └── I2C_tests.ino
    └── README.md # Documentation
-
+```
 
 ## Installation
 
