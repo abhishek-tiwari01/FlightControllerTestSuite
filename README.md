@@ -17,24 +17,25 @@ The structure includes:
 ## Repository Structure
 
 FlightControllerTestSuite/
-├── firmware/ # Firmware files and scripts
-│ ├── ArducopterTest4.6.0-dev_images/bin/arducopter.apj
-│ ├── ArducopterFinal4.5.2_images/bin/arducopter.apj
-│ └── uploader.py
-├── scripts/ # Test and report generation scripts
-│ ├── main_test_script.py
-│ ├── generate_reports.py
-│ └── report_template.html
-├── images/ # Images for reports
-│ └── cube.jpg
-├── setup.sh # Setup script
-├── lua_scripts/ # Lua scripts for SD card
-│ ├── rc.lua
-│ ├── psense.lua
-│ ├── I2C.lua
-│ └── Arduino
-│     └── I2C_tests.ino
-└── README.md # Documentation
+
+   ├── firmware/ # Firmware files and scripts
+   │ ├── ArducopterTest4.6.0-dev_images/bin/arducopter.apj
+   │ ├── ArducopterFinal4.5.2_images/bin/arducopter.apj
+   │ └── uploader.py
+   ├── scripts/ # Test and report generation scripts
+   │ ├── main_test_script.py
+   │ ├── generate_reports.py
+   │ └── report_template.html
+   ├── images/ # Images for reports
+   │ └── cube.jpg
+   ├── setup.sh # Setup script
+   ├── lua_scripts/ # Lua scripts for SD card
+   │ ├── rc.lua
+   │ ├── psense.lua
+   │ ├── I2C.lua
+   │ └── Arduino
+   │     └── I2C_tests.ino
+   └── README.md # Documentation
 
 
 ## Installation
@@ -137,7 +138,8 @@ Enter your choice (1/2/3/4):
    Vehicle: Copter, Firmware version: dev-4.6.0
    ```
 
-4. **Perform MAVProxy tests (PSense, I2C, and ADC). Ensure the SD card is loaded with the Lua script and hardware connections are proper.**
+4. **MAVProxy tests (PSense, I2C, and ADC).**
+   Ensure the SD card is loaded with the Lua script and hardware connections are proper.
    ```
    Run Psense Tests:
    Psense Voltage: FAIL
@@ -151,10 +153,10 @@ Enter your choice (1/2/3/4):
    PSENSE Overall: PASS
    ADC: PASS
    ```
-
    Some tests might initially FAIL but should eventually PASS. If not, close the test and repeat.
 
-5. **Proceed with Main and Aux out tests. Press Enter twice to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.**
+6. **Main and Aux out tests.**
+    Press Enter twice to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.
    ```
    Press Enter twice to Proceed for MAIN & AUX Out tests:
    Press if MAIN OUT 1-4 LEDs are glowing (y/n): y
@@ -162,7 +164,8 @@ Enter your choice (1/2/3/4):
    Press if AUX OUT 1-6 LEDs are glowing (y/n): y
    ```
 
-6. **Proceed with PPM and SBUS test. Press the safety switch until it starts flashing.**
+8. **PPM and SBUS test.**
+   Press the safety switch until it starts flashing.
    ```
    Reading MAVProxy output for radio status...
    Hold the safety switch until it Blinks Red, then press Enter.
@@ -170,7 +173,7 @@ Enter your choice (1/2/3/4):
    PPM and SBUSo: PASS
    ```
 
-7. **Proceed with Serial and CAN test through IFB over ADB.**
+10. **Serial and CAN test through IFB over ADB.**
    ```
    Starting Serial Tests through Flight Computer...
    Serial 1: PASS
@@ -182,7 +185,7 @@ Enter your choice (1/2/3/4):
    CAN 2: PASS
    ```
 
-8. **Load Release Firmware and test Serial 2 Port.**
+11. **Load Release Firmware and test Serial 2 Port.**
    ```
    Loading Release firmware...
    Loaded firmware for 427,0, size: 1817396 bytes, waiting for the bootloader...
@@ -193,7 +196,7 @@ Enter your choice (1/2/3/4):
    Flight Controller Unit has Completed All the tests and is Ready to use.
    ```
 
-9. **Report Generation:**
+11. **Report Generation:**
    ```
    Generated JSON file with test results at: /home/username/Desktop/Production_Test/<QR>_<date_time>/test_results.json
    Report generation completed successfully.
@@ -242,16 +245,16 @@ Enter your choice (1/2/3/4):
    ```
 
 2. **Ensure the test firmware is flashed.**
-3. **Ensure the battery is charged and connected to the Psense port with the Psense cable.**
-4. **Connect to MAVProxy and read the output to evaluate the Psense cable status.**
+   If not restart test and chose option 3. Load Test Firmware.
+4. **Ensure the battery is charged and connected to the Psense port with the Psense cable.**
+5. **Connect to MAVProxy and read the output to evaluate the Psense cable status.**
    ```
    Connecting to MAVProxy...
    Reading MAVProxy output...
-   PSENSE Overall: FAIL
+   Psense Voltage: PASS
+   Psense Current: PASS
+   PSENSE Overall: PASS
    Psense Cable Test Completed.
-   Psense Voltage: FAIL
-   Psense Current: FAIL
-   PSENSE Overall: FAIL
    ```
 
 ## Summary of Menu Options
