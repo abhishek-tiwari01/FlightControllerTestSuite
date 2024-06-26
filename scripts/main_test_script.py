@@ -14,12 +14,21 @@ from pymavlink import mavutil
 init(autoreset=True)
 
 # Define paths
+USER_HOME = os.path.expanduser('~')
+DESKTOP_PATH = os.path.join(USER_HOME, 'Desktop')
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FIRMWARE_TEST_PATH = os.path.join(BASE_DIR, "firmware/ArducopterTest4.6.0-dev_images/bin/arducopter.apj")
-FIRMWARE_FINAL_PATH = os.path.join(BASE_DIR, "firmware/ArducopterFinal4.5.2_images/bin/arducopter.apj")
-GENERATE_REPORT_SCRIPT = os.path.join(BASE_DIR, "scripts/generate_reports.py")
-CUBE_IMAGE_PATH = os.path.join(BASE_DIR, "images/cube.jpg")
+FIRMWARE_DIR = os.path.join(BASE_DIR, 'firmware')
+IMAGES_DIR = os.path.join(BASE_DIR, 'images')
+SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
+REPORT_SCRIPT_PATH = os.path.join(SCRIPTS_DIR, 'generate_reports.py')
+CUBE_IMAGE_PATH = os.path.join(IMAGES_DIR, 'cube.jpg')
+PRODUCTION_TEST_FOLDER = os.path.join(DESKTOP_PATH, "Production_Test")
 LOG_DIR = os.getenv('LOG_DIR', '/tmp')
+os.makedirs(PRODUCTION_TEST_FOLDER, exist_ok=True)
+
+FIRMWARE_TEST_PATH = os.path.join(FIRMWARE_DIR, "ArducopterTest4.6.0-dev_images/bin/arducopter.apj")
+FIRMWARE_FINAL_PATH = os.path.join(FIRMWARE_DIR, "ArducopterFinal4.5.2_images/bin/arducopter.apj")
+UPLOADER_SCRIPT_PATH = os.path.join(FIRMWARE_DIR, "uploader.py")
 
 def find_cube_orange_port():
     ports = serial.tools.list_ports.comports()
@@ -31,7 +40,7 @@ def find_cube_orange_port():
 def load_firmware(firmware_path, firmware_type):
     try:
         print(f"{Fore.YELLOW}Loading {firmware_type} firmware...{Style.RESET_ALL}")
-        subprocess.run(["Tools/scripts/uploader.py", "--force", firmware_path], check=True)
+        subprocess.run([UPLOADER_SCRIPT_PATH, "--force", firmware_path], check=True, cwd=FIRMWARE_DIR)
         time.sleep(12)
         print(f"{Fore.GREEN}{firmware_type} Firmware loaded.{Style.RESET_ALL}")
     except subprocess.CalledProcessError as e:
@@ -429,8 +438,7 @@ def main():
         print(f"{Fore.GREEN}QR code scanned: {qr_code}{Style.RESET_ALL}")
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         folder_name = f"{qr_code}_{timestamp}"
-        production_test_folder = os.path.join(os.path.expanduser("~"), "Desktop", "Production_Test")
-        specific_folder_path = os.path.join(production_test_folder, folder_name)
+        specific_folder_path = os.path.join(PRODUCTION_TEST_FOLDER, folder_name)
         os.makedirs(specific_folder_path, exist_ok=True)
         log_file_path = os.path.join(specific_folder_path, "mavproxy_logs.txt")
         
@@ -493,7 +501,7 @@ def main():
 
         try:
             json_file_path = os.path.join(specific_folder_path, "test_results.json")
-            subprocess.run(["python3", GENERATE_REPORT_SCRIPT, json_file_path, CUBE_IMAGE_PATH], check=True)
+            subprocess.run(["python3", REPORT_SCRIPT_PATH, json_file_path, CUBE_IMAGE_PATH], check=True)
             print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
         except subprocess.CalledProcessError as e:
             print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")

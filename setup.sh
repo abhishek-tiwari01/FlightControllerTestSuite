@@ -26,7 +26,7 @@ pip3 install --user --no-cache-dir PyYAML mavproxy jinja2 weasyprint pyserial co
 
 # Add current user to dialout group
 echo "Adding user to dialout group..."
-usermod -a -G dialout $SUDO_USER
+usermod -a -G dialout $USER
 
 # Ensure ModemManager is disabled
 echo "Disabling ModemManager..."
