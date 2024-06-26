@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Report - {{ test_data.qr_code }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .info-table, .test-results { margin: 0 auto; border-collapse: collapse; width: 80%; }
+        th, td { padding: 8px; border: 1px solid #ddd; }
+        .info-table th { text-align: left; }
+        .status-pass { background-color: #ddffdd; }
+        .status-fail { background-color: #ffdddd; }
+    </style>
+</head>
+<body>
+    <h1>MRD5165 Flight Controller Test Report</h1>
+    <img src="{{ imageUrl }}" alt="Flight Controller" style="width: 300px;">
+    <br>
+    <h2>Table 1: TEST SETUP DATA</h2>
+    <table class="info-table">
+        <tr>
+            <th>Date:</th>
+            <td>{{ now.split(' ')[0] }}</td>
+        </tr>
+        <tr>
+            <th>Time:</th>
+            <td>{{ now.split(' ')[1] }}</td>
+        </tr>
+        <tr>
+            <th>Board Serial Number:</th>
+            <td>{{ test_data.qr_code }}</td>
+        </tr>
+        <tr>
+            <th>Firmware Version:</th>
+            <td>{{ test_data.final_firmware_version }}</td>
+        </tr>
+    </table>
+    <br>
+    <h2>Table 2: TEST INFORMATION AND STATUS</h2>
+    <table class="test-results">
+        <tr>
+            <th>Step No</th>
+            <th>Test Description</th>
+            <th>Status</th>
+        </tr>
+        {% for step in test_data.test_results %}
+        <tr class="{{ 'status-pass' if step.step_status == 'PASS' else 'status-fail' }}">
+            <td>{{ loop.index }}</td>
+            <td>{{ step.step_description }}</td>
+            <td>{{ step.step_status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <h2>***** END OF REPORT *****</h2>
+</body>
+</html>
