@@ -21,8 +21,8 @@ apt-get update && apt-get install -y \
     can-utils
 
 # Install Python dependencies for the current user
-echo "Installing Python dependencies for the current user..."
-pip3 install --user --no-cache-dir PyYAML mavproxy jinja2 weasyprint pyserial colorama pymavlink
+# echo "Installing Python dependencies for the current user..."
+# pip3 install --user --no-cache-dir PyYAML mavproxy jinja2 weasyprint pyserial colorama pymavlink
 
 # Add current user to dialout group
 echo "Adding user to dialout group..."
