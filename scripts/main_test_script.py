@@ -12,11 +12,11 @@ from pymavlink import mavutil
 
 # Initialize colorama
 init(autoreset=True)
-
+'''
 # Load configuration from environment variables or use defaults
 FIRMWARE_TEST_PATH = os.getenv('FIRMWARE_TEST_PATH', '/home/maheshhg/Desktop/FlightControllerTestSuite/firmware/ArducopterTest4.6.0-dev_images/bin/arducopter.apj')
 FIRMWARE_FINAL_PATH = os.getenv('FIRMWARE_FINAL_PATH', '/home/maheshhg/Desktop/FlightControllerTestSuite/firmware/ArducopterFinal4.5.2_images/bin/arducopter.apj')
-GENERATE_REPORT_SCRIPT = os.getenv('GENERATE_REPORT_SCRIPT', '/home/maheshhg/Desktop/FlightControllerTestSuite/scripts/generate_reports.py')
+GENERATE_REPORT_SCRIPT = os.getenv('GENERATE_REPORT_SCRIPT', '/home/maheshhg/Desktop/FlightControllerTestSuite/generate_reports.py')
 LOG_DIR = os.getenv('LOG_DIR', '/tmp')
 
 '''
@@ -36,7 +36,7 @@ os.makedirs(PRODUCTION_TEST_FOLDER, exist_ok=True)
 FIRMWARE_TEST_PATH = os.path.join(FIRMWARE_DIR, "ArducopterTest4.6.0-dev_images/bin/arducopter.apj")
 FIRMWARE_FINAL_PATH = os.path.join(FIRMWARE_DIR, "ArducopterFinal4.5.2_images/bin/arducopter.apj")
 UPLOADER_SCRIPT_PATH = os.path.join(FIRMWARE_DIR, "uploader.py")
-'''
+
 def find_cube_orange_port():
     ports = serial.tools.list_ports.comports()
     for port in sorted(ports):
@@ -47,7 +47,7 @@ def find_cube_orange_port():
 def load_firmware(firmware_path, firmware_type):
     try:
         print(f"{Fore.YELLOW}Loading {firmware_type} firmware...{Style.RESET_ALL}")
-        subprocess.run(["Tools/scripts/uploader.py", "--force", firmware_path], check=True)
+        subprocess.run([UPLOADER_SCRIPT_PATH, "--force", firmware_path], check=True, cwd=FIRMWARE_DIR)
         time.sleep(12)
         print(f"{Fore.GREEN}{firmware_type} Firmware loaded.{Style.RESET_ALL}")
     except subprocess.CalledProcessError as e:
@@ -509,7 +509,7 @@ def main():
 
         try:
             json_file_path = os.path.join(specific_folder_path, "test_results.json")
-            subprocess.run(["python3", GENERATE_REPORT_SCRIPT, json_file_path, "/images/cube.jpg"], check=True)
+            subprocess.run(["python3", REPORT_SCRIPT_PATH, json_file_path, CUBE_IMAGE_PATH], check=True)
             print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
         except subprocess.CalledProcessError as e:
             print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
