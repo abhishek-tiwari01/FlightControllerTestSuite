@@ -299,7 +299,8 @@ This documentation provides a clear and detailed guide for setting up and runnin
 During the installation and setup of the CubePilot CubeOrange+ device, we encountered some issues related to USB device detection. Below are the steps taken to identify and resolve the issues:
 
 1. **Identifying the USB Device**:
-    - Run  ```
+    - Run
+      ```
       lsusb
       ```
        to list all connected USB devices. Look for the CubePilot CubeOrange+ device in the output. The relevant entry should look like this:
