@@ -309,12 +309,12 @@ During the installation and setup of the CubePilot CubeOrange+ device, we encoun
 
 2. **Verifying Device Connection**:
     - Use dmesg to verify the device connection. The relevant entries should show the USB device being recognized:
-      ```
+```
     [  193.930246] usb 1-1: New USB device found, idVendor=2dae, idProduct=1058, bcdDevice= 2.00
     [  193.930271] usb 1-1: Product: CubeOrange+
     [  193.930277] usb 1-1: Manufacturer: CubePilot
     [  193.930282] usb 1-1: SerialNumber: 2D0036000851323138363132
-   ```
+```
 3. **Creating a udev Rule**:
     - To ensure the device is always recognized with the correct permissions, create a udev rule:
         1. Create a new file for the udev rule using a text editor:
