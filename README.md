@@ -292,3 +292,52 @@ This documentation provides a clear and detailed guide for setting up and runnin
 ```
  sudo apt-get remove modemmanager brltty
  ```
+## Troubleshooting and Known Issues
+
+### USB Device Detection Issues
+
+During the installation and setup of the CubePilot CubeOrange+ device, we encountered some issues related to USB device detection. Below are the steps taken to identify and resolve the issues:
+
+1. **Identifying the USB Device**:
+    - Run
+    - ```
+      lsusb
+      ```
+       to list all connected USB devices. Look for the CubePilot CubeOrange+ device in the output. The relevant entry should look like this:
+       Bus 001 Device 009: ID 2dae:1058 CubePilot CubeOrange+-BL
+       - Note the idVendor (2dae) and idProduct (1058) values.
+
+2. **Verifying Device Connection**:
+    - Use dmesg to verify the device connection. The relevant entries should show the USB device being recognized:
+       [  193.930246] usb 1-1: New USB device found, idVendor=2dae, idProduct=1058, bcdDevice= 2.00
+    [  193.930271] usb 1-1: Product: CubeOrange+
+    [  193.930277] usb 1-1: Manufacturer: CubePilot
+    [  193.930282] usb 1-1: SerialNumber: 2D0036000851323138363132
+   
+3. **Creating a udev Rule**:
+    - To ensure the device is always recognized with the correct permissions, create a udev rule:
+        1. Create a new file for the udev rule using a text editor:
+           
+           ```
+           sudo nano /etc/udev/rules.d/99-cubepilot.rules
+           ```
+                   2. Add the following line to the file:
+                      SUBSYSTEM=="usb", ATTR{idVendor}=="2dae", ATTR{idProduct}=="1058", MODE="0666"
+                      This rule sets the permissions (MODE="0666") to allow read and write access to the device for all users.
+
+        3. Save the file and exit the text editor.
+
+        4. Apply the new udev rule by reloading udev rules:
+           ```
+           sudo udevadm control --reload-rules
+           ```
+        5. Disconnect and reconnect the CubePilot CubeOrange+ device to apply the new udev rule.
+
+4. **Common Errors and Resolutions**:
+    - **Command Not Found**: If you encounter an error such as sudo: demsg: command not found, ensure you are typing the correct command sudo dmesg.
+    - **Device Not Recognized**: If the device is not recognized, try reconnecting the USB cable or using a different USB port. Ensure the device is powered on and functioning properly.
+
+5. **Further Debugging**:
+    - If issues persist, use dmesg | tail -20 to view the latest system messages and identify potential problems.
+
+By following these steps, we were able to successfully identify and resolve the USB device detection issues with the CubePilot CubeOrange+ during installation. 
