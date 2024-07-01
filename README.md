@@ -286,8 +286,9 @@ Enter your choice (1/2/3/4):
   - Evaluates and confirms the status of the Psense cable.
 
 This documentation provides a clear and detailed guide for setting up and running tests using the `FlightControllerTestSuite`, ensuring that all steps are followed accurately for successful testing and reporting.
-```
+
 ## Troubleshooting
+
 ```
  sudo apt-get remove modemmanager brltty
  ```
