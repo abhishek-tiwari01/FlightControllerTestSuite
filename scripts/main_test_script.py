@@ -12,14 +12,7 @@ from pymavlink import mavutil
 
 # Initialize colorama
 init(autoreset=True)
-'''
-# Load configuration from environment variables or use defaults
-FIRMWARE_TEST_PATH = os.getenv('FIRMWARE_TEST_PATH', '/home/maheshhg/Desktop/FlightControllerTestSuite/firmware/ArducopterTest4.6.0-dev_images/bin/arducopter.apj')
-FIRMWARE_FINAL_PATH = os.getenv('FIRMWARE_FINAL_PATH', '/home/maheshhg/Desktop/FlightControllerTestSuite/firmware/ArducopterFinal4.5.2_images/bin/arducopter.apj')
-GENERATE_REPORT_SCRIPT = os.getenv('GENERATE_REPORT_SCRIPT', '/home/maheshhg/Desktop/FlightControllerTestSuite/generate_reports.py')
-LOG_DIR = os.getenv('LOG_DIR', '/tmp')
 
-'''
 # Define paths
 USER_HOME = os.path.expanduser('~')
 DESKTOP_PATH = os.path.join(USER_HOME, 'Desktop')
@@ -115,13 +108,14 @@ def connect_mavproxy(port):
     mavproxy_process = subprocess.Popen(mavproxy_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1)
     return mavproxy_process
 
-def read_output(process, component_status, log_file_path, finished_event, psense_only=False, max_lines=50, timeout=10):
+def read_output(process, component_status, log_file_path, finished_event, psense_only=False, max_lines=50, timeout=30):
     try:
         with open(log_file_path, 'w') as log_file:
             start_time = time.time()
             line_count = 0
             psense_found = False
             test_messages_found = set()
+            expected_messages = ["I2C1", "I2C2", "Psense Voltage", "Psense Current", "ADC"]
 
             while time.time() - start_time < timeout and line_count < max_lines:
                 line = process.stdout.readline()
@@ -137,10 +131,13 @@ def read_output(process, component_status, log_file_path, finished_event, psense
                     test_messages_found.add("Psense Current")
                 elif not psense_only:
                     parse_mavproxy_output(line.strip(), component_status, psense_only)
-                    for comp in ["I2C1", "I2C2", "Psense Voltage", "Psense Current", "ADC"]:
+                    for comp in expected_messages:
                         if comp in line:
                             test_messages_found.add(comp)
                 line_count += 1
+
+                if all(msg in test_messages_found for msg in expected_messages):
+                    break
 
             if psense_only and not psense_found:
                 component_status["Psense Voltage"] = "FAIL"
@@ -458,6 +455,16 @@ def main():
             print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
             return
 
+        # Move the tests for PWM motors and PPM SBUSo here
+        master = mavutil.mavlink_connection(cube_orange_port, baud=115200)
+        master.wait_heartbeat()
+        
+        input(f"{Fore.YELLOW}\nPress Enter to Proceed for MAIN & AUX Out tests:{Style.RESET_ALL}")
+        pwm_results = test_pwm_outputs(master)
+        component_status.update(pwm_results)
+
+        test_radio_status(component_status)
+
         mavproxy_process = connect_mavproxy(cube_orange_port)
         finished_event = threading.Event()
         thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, False), daemon=True)
@@ -465,14 +472,7 @@ def main():
         finished_event.wait()
         mavproxy_process.terminate()
 
-        master = mavutil.mavlink_connection(cube_orange_port, baud=115200)
-        master.wait_heartbeat()
-        
-        input(f"{Fore.YELLOW}\nPress Enter twice to Proceed for MAIN & AUX Out tests:{Style.RESET_ALL}")
-        pwm_results = test_pwm_outputs(master)
-        component_status.update(pwm_results)
 
-        test_radio_status(component_status)
 
         print(f"\n{Fore.YELLOW}Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
         integrate_serial_test(component_status, 1, [0, 0])
