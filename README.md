@@ -147,8 +147,24 @@ Enter your choice (1/2/3/4):
    Test Firmware loaded.
    Vehicle: Copter, Firmware version: dev-4.6.0
    ```
+4. **Main and Aux out tests.**
+    Press Enter to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.
+   ```
+   Press Enter twice to Proceed for MAIN & AUX Out tests:
+   Press if MAIN OUT 1-4 LEDs are glowing (y/n): y
+   Press if MAIN OUT 5-8 LEDs are glowing (y/n): y
+   Press if AUX OUT 1-6 LEDs are glowing (y/n): y
+   ```
 
-4. **MAVProxy tests (PSense, I2C, and ADC).**
+5. **PPM and SBUS test.**
+   Press the safety switch until it starts flashing.
+   ```
+   Reading MAVProxy output for radio status...
+   Hold the safety switch until it Blinks Red, then press Enter.
+   Radio Test Completed.
+   PPM and SBUSo: PASS
+   ```
+6. **MAVProxy tests (PSense, I2C, and ADC).**
    Ensure the SD card is loaded with the Lua script and hardware connections are proper.
    ```
    Run Psense Tests:
@@ -165,25 +181,8 @@ Enter your choice (1/2/3/4):
    ```
    Some tests might initially FAIL but should eventually PASS. If not, close the test and repeat.
 
-6. **Main and Aux out tests.**
-    Press Enter twice to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.
-   ```
-   Press Enter twice to Proceed for MAIN & AUX Out tests:
-   Press if MAIN OUT 1-4 LEDs are glowing (y/n): y
-   Press if MAIN OUT 5-8 LEDs are glowing (y/n): y
-   Press if AUX OUT 1-6 LEDs are glowing (y/n): y
-   ```
 
-8. **PPM and SBUS test.**
-   Press the safety switch until it starts flashing.
-   ```
-   Reading MAVProxy output for radio status...
-   Hold the safety switch until it Blinks Red, then press Enter.
-   Radio Test Completed.
-   PPM and SBUSo: PASS
-   ```
-
-10. **Serial and CAN test through IFB over ADB.**
+7. **Serial and CAN test through IFB over ADB.**
    ```
    Starting Serial Tests through Flight Computer...
    Serial 1: PASS
@@ -195,7 +194,7 @@ Enter your choice (1/2/3/4):
    CAN 2: PASS
    ```
 
-11. **Load Release Firmware and test Serial 2 Port.**
+8. **Load Release Firmware and test Serial 2 Port.**
    ```
    Loading Release firmware...
    Loaded firmware for 427,0, size: 1817396 bytes, waiting for the bootloader...
@@ -206,7 +205,7 @@ Enter your choice (1/2/3/4):
    Flight Controller Unit has Completed All the tests and is Ready to use.
    ```
 
-11. **Report Generation:**
+9. **Report Generation:**
    ```
    Generated JSON file with test results at: /home/username/Desktop/Production_Test/<QR>_<date_time>/test_results.json
    Report generation completed successfully.
@@ -286,4 +285,61 @@ Enter your choice (1/2/3/4):
   - Evaluates and confirms the status of the Psense cable.
 
 This documentation provides a clear and detailed guide for setting up and running tests using the `FlightControllerTestSuite`, ensuring that all steps are followed accurately for successful testing and reporting.
+
+## Troubleshooting
+
 ```
+ sudo apt-get remove modemmanager brltty
+ ```
+## Troubleshooting and Known Issues
+
+### USB Device Detection Issues
+
+During the installation and setup of the CubePilot CubeOrange+ device, we encountered some issues related to USB device detection. Below are the steps taken to identify and resolve the issues:
+
+1. **Identifying the USB Device**:
+    - Run
+      ```
+      lsusb
+      ```
+       to list all connected USB devices. Look for the CubePilot CubeOrange+ device in the output. The relevant entry should look like this:
+       Bus 001 Device 009: ID 2dae:1058 CubePilot CubeOrange+-BL
+       - Note, here the idVendor (2dae) and idProduct (1058) values.
+
+2. **Verifying Device Connection**:
+    - Use dmesg to verify the device connection. The relevant entries should show the USB device being recognized:
+```
+    [  193.930246] usb 1-1: New USB device found, idVendor=2dae, idProduct=1058, bcdDevice= 2.00
+    [  193.930271] usb 1-1: Product: CubeOrange+
+    [  193.930277] usb 1-1: Manufacturer: CubePilot
+    [  193.930282] usb 1-1: SerialNumber: 2D0036000851323138363132
+```
+3. **Creating a udev Rule**:
+    - To ensure the device is always recognized with the correct permissions, create a udev rule:
+        1. Create a new file for the udev rule using a text editor:
+           
+           ```
+           sudo nano /etc/udev/rules.d/99-cubepilot.rules
+           ```
+        2. Add the following line to the file:
+           ```
+           SUBSYSTEM=="usb", ATTR{idVendor}=="2dae", ATTR{idProduct}=="1058", MODE="0666"
+            ```
+           This rule sets the permissions (MODE="0666") to allow read and write access to the device for all users.
+            
+        4. Save the file and exit the text editor.
+
+        5. Apply the new udev rule by reloading udev rules:
+           ```
+           sudo udevadm control --reload-rules
+           ```
+        6. Disconnect and reconnect the CubePilot CubeOrange+ device to apply the new udev rule.
+
+4. **Common Errors and Resolutions**:
+    - **Command Not Found**: If you encounter an error such as sudo: demsg: command not found, ensure you are typing the correct command sudo dmesg.
+    - **Device Not Recognized**: If the device is not recognized, try reconnecting the USB cable or using a different USB port. Ensure the device is powered on and functioning properly.
+
+5. **Further Debugging**:
+    - If issues persist, use dmesg | tail -20 to view the latest system messages and identify potential problems.
+
+By following these steps, we were able to successfully identify and resolve the USB device detection issues with the CubePilot CubeOrange+ during installation. 
