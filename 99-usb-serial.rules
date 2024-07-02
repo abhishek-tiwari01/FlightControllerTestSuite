@@ -1,0 +1,2 @@
+# Set proper permissions for USB serial devices
+SUBSYSTEM=="usb", ATTR{idVendor}=="2dae", ATTR{idProduct}=="1058", MODE="0666"
