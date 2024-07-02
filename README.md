@@ -289,7 +289,13 @@ This documentation provides a clear and detailed guide for setting up and runnin
 ## Troubleshooting
 
 ```
- sudo apt-get remove modemmanager brltty
+sudo apt-get remove modemmanager brltty
+sudo apt-get update
+sudo apt-get install docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker $USER
+
  ```
 ## Troubleshooting and Known Issues
 
