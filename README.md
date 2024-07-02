@@ -147,8 +147,24 @@ Enter your choice (1/2/3/4):
    Test Firmware loaded.
    Vehicle: Copter, Firmware version: dev-4.6.0
    ```
+4. **Main and Aux out tests.**
+    Press Enter to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.
+   ```
+   Press Enter twice to Proceed for MAIN & AUX Out tests:
+   Press if MAIN OUT 1-4 LEDs are glowing (y/n): y
+   Press if MAIN OUT 5-8 LEDs are glowing (y/n): y
+   Press if AUX OUT 1-6 LEDs are glowing (y/n): y
+   ```
 
-4. **MAVProxy tests (PSense, I2C, and ADC).**
+5. **PPM and SBUS test.**
+   Press the safety switch until it starts flashing.
+   ```
+   Reading MAVProxy output for radio status...
+   Hold the safety switch until it Blinks Red, then press Enter.
+   Radio Test Completed.
+   PPM and SBUSo: PASS
+   ```
+6. **MAVProxy tests (PSense, I2C, and ADC).**
    Ensure the SD card is loaded with the Lua script and hardware connections are proper.
    ```
    Run Psense Tests:
@@ -165,25 +181,8 @@ Enter your choice (1/2/3/4):
    ```
    Some tests might initially FAIL but should eventually PASS. If not, close the test and repeat.
 
-6. **Main and Aux out tests.**
-    Press Enter twice to proceed. Observe each LED. They will glow one by one. Provide the input (y/n) and press Enter.
-   ```
-   Press Enter twice to Proceed for MAIN & AUX Out tests:
-   Press if MAIN OUT 1-4 LEDs are glowing (y/n): y
-   Press if MAIN OUT 5-8 LEDs are glowing (y/n): y
-   Press if AUX OUT 1-6 LEDs are glowing (y/n): y
-   ```
 
-8. **PPM and SBUS test.**
-   Press the safety switch until it starts flashing.
-   ```
-   Reading MAVProxy output for radio status...
-   Hold the safety switch until it Blinks Red, then press Enter.
-   Radio Test Completed.
-   PPM and SBUSo: PASS
-   ```
-
-10. **Serial and CAN test through IFB over ADB.**
+7. **Serial and CAN test through IFB over ADB.**
    ```
    Starting Serial Tests through Flight Computer...
    Serial 1: PASS
@@ -195,7 +194,7 @@ Enter your choice (1/2/3/4):
    CAN 2: PASS
    ```
 
-11. **Load Release Firmware and test Serial 2 Port.**
+8. **Load Release Firmware and test Serial 2 Port.**
    ```
    Loading Release firmware...
    Loaded firmware for 427,0, size: 1817396 bytes, waiting for the bootloader...
@@ -206,7 +205,7 @@ Enter your choice (1/2/3/4):
    Flight Controller Unit has Completed All the tests and is Ready to use.
    ```
 
-11. **Report Generation:**
+9. **Report Generation:**
    ```
    Generated JSON file with test results at: /home/username/Desktop/Production_Test/<QR>_<date_time>/test_results.json
    Report generation completed successfully.
