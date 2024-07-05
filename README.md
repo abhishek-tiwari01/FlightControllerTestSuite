@@ -288,14 +288,20 @@ This documentation provides a clear and detailed guide for setting up and runnin
 
 ## Generated Reports:
 **Production Test Folder:** This is created on the desktop and is named Production_Test.
+
 **Specific Test Folder:** Each run of run_all_tests creates a folder named {qr_code}_{timestamp} inside the Production_Test folder on the desktop. The timestamp ensures uniqueness.
+
 **Log Directory:** The LOG_DIR is by default set to /tmp, but can be customized by setting the LOG_DIR environment variable.
+
 **Example:**
 If you run the run_all_tests function with a QR code test123 at 2023-10-05_12-00-00, the specific log file paths would be:
 
 **General MAVProxy logs:** ~/Desktop/Production_Test/test123_2023-10-05_12-00-00/mavproxy_logs.txt
+
 **PSENSE Test logs:** /tmp/mavproxy_psense_logs.txt
+
 **ADC Test logs:** /tmp/mavproxy_adc_logs.txt
+
 **I2C Test logs:** /tmp/mavproxy_i2c_logs.txt
 You can modify these paths if needed by changing the relevant lines in the script. For instance, to change the LOG_DIR to /var/log/flight_tests, you can set it in the environment variables or modify the script directly:
 ```
