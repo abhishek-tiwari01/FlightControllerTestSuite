@@ -108,70 +108,47 @@ def connect_mavproxy(port):
     mavproxy_process = subprocess.Popen(mavproxy_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1)
     return mavproxy_process
 
-def read_output(process, component_status, log_file_path, finished_event, psense_only=False, max_lines=50, timeout=30):
+def read_output(process, component_status, log_file_path, finished_event, parse_function, timeout=10):
     try:
         with open(log_file_path, 'w') as log_file:
             start_time = time.time()
-            line_count = 0
-            psense_found = False
-            test_messages_found = set()
-            expected_messages = ["I2C1", "I2C2", "Psense Voltage", "Psense Current", "ADC"]
-
-            while time.time() - start_time < timeout and line_count < max_lines:
+            while time.time() - start_time < timeout:
                 line = process.stdout.readline()
                 if not line:
                     break
 
                 log_file.write(line)
                 log_file.flush()
-                if psense_only and ("Psense Voltage" in line or "Psense Current" in line):
-                    psense_found = True
-                    parse_mavproxy_output(line.strip(), component_status, psense_only)
-                    test_messages_found.add("Psense Voltage")
-                    test_messages_found.add("Psense Current")
-                elif not psense_only:
-                    parse_mavproxy_output(line.strip(), component_status, psense_only)
-                    for comp in expected_messages:
-                        if comp in line:
-                            test_messages_found.add(comp)
-                line_count += 1
-
-                if all(msg in test_messages_found for msg in expected_messages):
-                    break
-
-            if psense_only and not psense_found:
-                component_status["Psense Voltage"] = "FAIL"
-                component_status["Psense Current"] = "FAIL"
-                evaluate_psense_overall(component_status)
-
-            if not psense_only and not test_messages_found:
-                print(f"{Fore.RED}Test Messages Not Received, Please Check SD Card and Lua Scripts{Style.RESET_ALL}")
-
+                parse_function(line.strip(), component_status)
     except Exception as e:
         print(f"{Fore.RED}Error reading output: {e}{Style.RESET_ALL}")
     finally:
         finished_event.set()
 
-def parse_mavproxy_output(line, component_status, psense_only):
-    components = {
-        "I2C1": "AP: I2C1:",
-        "I2C2": "AP: I2C2:",
-        "Psense Voltage": "AP: Psense Voltage:",
-        "Psense Current": "AP: Psense Current:",
-        "ADC": "AP: Rangefinder Distance:"
-    }
+def parse_i2c_output(line, component_status):
+    if "AP: I2C1:" in line:
+        status = "FAIL" if "ERROR" in line else "PASS"
+        update_status("I2C1", status, component_status)
+    elif "AP: I2C2:" in line:
+        status = "FAIL" if "ERROR" in line else "PASS"
+        update_status("I2C2", status, component_status)
 
-    for comp, signal in components.items():
-        if psense_only and comp not in ["Psense Voltage", "Psense Current"]:
-            continue
-        
-        if signal in line:
-            if comp in ["I2C1", "I2C2"]:
-                status = "FAIL" if "ERROR" in line else "PASS"
-            else:
-                value = float(line.split()[-2])
-                status = "PASS" if value > 5.0 else "FAIL"
-            update_status(comp, status, component_status)
+def parse_psense_output(line, component_status):
+    if "AP: Psense Voltage:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 5.0 else "FAIL"
+        update_status("Psense Voltage", status, component_status)
+    elif "AP: Psense Current:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 2.0 else "FAIL"
+        update_status("Psense Current", status, component_status)
+    evaluate_psense_overall(component_status)
+
+def parse_adc_output(line, component_status):
+    if "AP: Rangefinder Distance:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 11.5 else "FAIL"
+        update_status("ADC", status, component_status)
 
 def update_status(component, status, component_status):
     if component_status.get(component) != status or component not in component_status:
@@ -347,24 +324,65 @@ def test_psense_cable(component_status):
         print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
         return
     
-    print(f"{Fore.YELLOW}Connecting to MAVProxy...{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}Testing PSENSE{Style.RESET_ALL}")
     mavproxy_process = connect_mavproxy(cube_orange_port)
     
     finished_event = threading.Event()
     log_file_path = os.path.join(LOG_DIR, "mavproxy_psense_logs.txt")
     
-    print(f"{Fore.YELLOW}Reading MAVProxy output...{Style.RESET_ALL}")
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, True), daemon=True)
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
     thread.start()
     finished_event.wait()
     mavproxy_process.terminate()
     
     evaluate_psense_overall(component_status)
     
-    print(f"{Fore.GREEN if component_status['PSENSE Overall'] == 'PASS' else Fore.RED}Psense Cable Test Completed.{Style.RESET_ALL}")
+    print(f"{Fore.GREEN if component_status['PSENSE Overall'] == 'PASS' else Fore.RED}{Style.RESET_ALL}")
     for component, status in component_status.items():
         if component in ["Psense Voltage", "Psense Current", "PSENSE Overall"]:
             print(f"{Fore.GREEN if status == 'PASS' else Fore.RED}{component}: {status}{Style.RESET_ALL}")
+
+def test_adc(component_status):
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return
+    
+    print(f"{Fore.YELLOW}Testing ADC{Style.RESET_ALL}")
+    mavproxy_process = connect_mavproxy(cube_orange_port)
+    
+    finished_event = threading.Event()
+    log_file_path = os.path.join(LOG_DIR, "mavproxy_adc_logs.txt")
+    
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_adc_output), daemon=True)
+    thread.start()
+    finished_event.wait()
+    mavproxy_process.terminate()
+
+    print(f"{Fore.GREEN if component_status['ADC'] == 'PASS' else Fore.RED}{Style.RESET_ALL}")
+    print(f"{Fore.GREEN if component_status['ADC'] == 'PASS' else Fore.RED}ADC: {component_status['ADC']}{Style.RESET_ALL}")
+
+def test_i2c(component_status):
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return
+    
+    print(f"{Fore.YELLOW}Testing I2C{Style.RESET_ALL}")
+    mavproxy_process = connect_mavproxy(cube_orange_port)
+    
+    finished_event = threading.Event()
+    log_file_path = os.path.join(LOG_DIR, "mavproxy_i2c_logs.txt")
+    
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_i2c_output), daemon=True)
+    thread.start()
+    finished_event.wait()
+    mavproxy_process.terminate()
+
+    print(f"{Fore.GREEN if component_status['I2C1'] == 'PASS' else Fore.RED}{Style.RESET_ALL}")
+    print(f"{Fore.GREEN if component_status['I2C2'] == 'PASS' else Fore.RED}{Style.RESET_ALL}")
+    print(f"{Fore.GREEN if component_status['I2C1'] == 'PASS' else Fore.RED}I2C1: {component_status['I2C1']}{Style.RESET_ALL}")
+    print(f"{Fore.GREEN if component_status['I2C2'] == 'PASS' else Fore.RED}I2C2: {component_status['I2C2']}{Style.RESET_ALL}")
 
 def test_pwm_outputs(master):
     def set_servo_function(servo, function):
@@ -414,7 +432,7 @@ def test_radio_status(component_status):
             elif "Radio Disconnected" in line:
                 radio_status = "FAIL"
                 break
-        print(f"\n{Fore.YELLOW}Radio Test Completed.{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}{Style.RESET_ALL}")
         print_status("PPM and SBUSo", radio_status == "PASS")
         component_status["PPM and SBUSo"] = radio_status
     finally:
@@ -465,14 +483,6 @@ def main():
 
         test_radio_status(component_status)
 
-        mavproxy_process = connect_mavproxy(cube_orange_port)
-        finished_event = threading.Event()
-        thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, False), daemon=True)
-        thread.start()
-        finished_event.wait()
-        mavproxy_process.terminate()
-
-
 
         print(f"\n{Fore.YELLOW}Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
         integrate_serial_test(component_status, 1, [0, 0])
@@ -481,13 +491,21 @@ def main():
         integrate_serial_test(component_status, 4, [1, 0])
         integrate_serial_test(component_status, 5, [1, 1])
 
+        print(f"\n{Fore.YELLOW}Starting CAN Tests through Flight Computer...{Style.RESET_ALL}\n")
         integrate_can_test(component_status, 1, 1, 1)
         integrate_can_test(component_status, 2, 0, 0)
+
+        print(f"\n{Fore.YELLOW}Starting MAVPROXY Tests through Flight Computer...{Style.RESET_ALL}\n")
+        test_psense_cable(component_status)
+        test_adc(component_status)
+        test_i2c(component_status)
 
         load_firmware(FIRMWARE_FINAL_PATH, "Release")
         final_firmware_version = get_firmware_version()
         print(final_firmware_version)
         integrate_serial_2_test(component_status)
+        integrate_can_test(component_status, 1, 1, 1)
+        integrate_can_test(component_status, 2, 0, 0)
         print(f"{Fore.GREEN}Flight Controller Unit has Completed All the tests and is Ready to use.{Style.RESET_ALL}")
 
     elif choice == '2':
