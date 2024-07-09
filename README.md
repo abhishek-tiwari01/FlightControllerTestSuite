@@ -112,6 +112,11 @@ Go to Config >> MAVFtp >> APM >> scripts ( Right Click and Upload all three scri
 5. **Power On the System.**
 6. **Connect the IFB with Type-C and the add-on test jig with microUSB to the Host-PC.**
 7. **Open Terminal and start the test by running the following command inside the `FlightControllerTestSuite` directory:**
+
+   ```
+   cd ~/Desktop/FlightControllerTestSuite
+   python3 scripts/main_test_script_upt.py
+   ```
    ```
    python3 scripts/main_test_script.py
    ```
