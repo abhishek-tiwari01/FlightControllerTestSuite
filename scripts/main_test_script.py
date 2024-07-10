@@ -9,6 +9,7 @@ import re
 import select
 from colorama import init, Fore, Style
 from pymavlink import mavutil
+from pynput.keyboard import Controller
 
 # Initialize colorama
 init(autoreset=True)
@@ -23,7 +24,6 @@ SCRIPTS_DIR = os.path.join(BASE_DIR, 'scripts')
 REPORT_SCRIPT_PATH = os.path.join(SCRIPTS_DIR, 'generate_reports.py')
 CUBE_IMAGE_PATH = os.path.join(IMAGES_DIR, 'cube.jpg')
 PRODUCTION_TEST_FOLDER = os.path.join(DESKTOP_PATH, "Production_Test")
-LOG_DIR = os.getenv('LOG_DIR', '/tmp')
 os.makedirs(PRODUCTION_TEST_FOLDER, exist_ok=True)
 
 FIRMWARE_TEST_PATH = os.path.join(FIRMWARE_DIR, "ArducopterTest4.6.0-dev_images/bin/arducopter.apj")
@@ -36,6 +36,35 @@ def find_cube_orange_port():
         if "ttyUSB" in port.device or "ttyACM" in port.device:
             return port.device
     return None
+
+def reboot_flight_controller():
+    port = find_cube_orange_port()
+    if port is None:
+        print(f"{Fore.RED}Cube Orange Plus not found. Please check the connection.{Style.RESET_ALL}")
+        return False
+    
+    try:
+        mavlink_connection = mavutil.mavlink_connection(port, baud=115200)
+        mavlink_connection.wait_heartbeat()
+        print("Heartbeat received from the flight controller.")
+        
+        mavlink_connection.mav.command_long_send(
+            mavlink_connection.target_system, 
+            mavlink_connection.target_component,
+            mavutil.mavlink.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN,
+            0,  # Confirmation
+            1,  # Param1 (1 for reboot, 0 for shutdown)
+            0, 0, 0, 0, 0, 0
+        )
+        print("Reboot command sent to the flight controller.")
+        mavlink_connection.close()
+        time.sleep(15)  # Wait for reboot to complete
+        return True
+    except Exception as e:
+        print(f"{Fore.RED}An error occurred: {e}{Style.RESET_ALL}")
+        return False
+
+# Existing functions
 
 def load_firmware(firmware_path, firmware_type):
     try:
@@ -53,7 +82,7 @@ def get_firmware_version():
 
     try:
         master = mavutil.mavlink_connection(port, baud=115200)
-        master.wait_heartbeat(timeout=30)
+        master.wait_heartbeat(timeout= 15)
 
         master.mav.command_long_send(
             master.target_system,
@@ -68,7 +97,7 @@ def get_firmware_version():
         if message:
             firmware_version = decode_flight_sw_version(message.flight_sw_version)
             vehicle_type = get_vehicle_type(master)
-            return f"\n{Fore.GREEN}Vehicle: {vehicle_type}, Firmware version: {firmware_version}{Style.RESET_ALL}\n"
+            return f"Vehicle: {vehicle_type}, Firmware version: {firmware_version}"
         else:
             return f"{Fore.RED}Firmware not flashed or not responding.{Style.RESET_ALL}"
     except Exception as e:
@@ -108,74 +137,50 @@ def connect_mavproxy(port):
     mavproxy_process = subprocess.Popen(mavproxy_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1)
     return mavproxy_process
 
-def read_output(process, component_status, log_file_path, finished_event, psense_only=False, max_lines=50, timeout=30):
+def read_output(process, component_status, log_file_path, finished_event, parse_function, timeout=10):
     try:
         with open(log_file_path, 'w') as log_file:
             start_time = time.time()
-            line_count = 0
-            psense_found = False
-            test_messages_found = set()
-            expected_messages = ["I2C1", "I2C2", "Psense Voltage", "Psense Current", "ADC"]
-
-            while time.time() - start_time < timeout and line_count < max_lines:
+            while time.time() - start_time < timeout:
                 line = process.stdout.readline()
                 if not line:
                     break
 
                 log_file.write(line)
                 log_file.flush()
-                if psense_only and ("Psense Voltage" in line or "Psense Current" in line):
-                    psense_found = True
-                    parse_mavproxy_output(line.strip(), component_status, psense_only)
-                    test_messages_found.add("Psense Voltage")
-                    test_messages_found.add("Psense Current")
-                elif not psense_only:
-                    parse_mavproxy_output(line.strip(), component_status, psense_only)
-                    for comp in expected_messages:
-                        if comp in line:
-                            test_messages_found.add(comp)
-                line_count += 1
-
-                if all(msg in test_messages_found for msg in expected_messages):
-                    break
-
-            if psense_only and not psense_found:
-                component_status["Psense Voltage"] = "FAIL"
-                component_status["Psense Current"] = "FAIL"
-                evaluate_psense_overall(component_status)
-
-            if not psense_only and not test_messages_found:
-                print(f"{Fore.RED}Test Messages Not Received, Please Check SD Card and Lua Scripts{Style.RESET_ALL}")
-
+                parse_function(line.strip(), component_status)
     except Exception as e:
         print(f"{Fore.RED}Error reading output: {e}{Style.RESET_ALL}")
     finally:
         finished_event.set()
 
-def parse_mavproxy_output(line, component_status, psense_only):
-    components = {
-        "I2C1": "AP: I2C1:",
-        "I2C2": "AP: I2C2:",
-        "Psense Voltage": "AP: Psense Voltage:",
-        "Psense Current": "AP: Psense Current:",
-        "ADC": "AP: Rangefinder Distance:"
-    }
+def parse_i2c_output(line, component_status):
+    if "AP: I2C1:" in line:
+        status = "FAIL" if "ERROR" in line else "PASS"
+        update_status("I2C1", status, component_status)
+    elif "AP: I2C2:" in line:
+        status = "FAIL" if "ERROR" in line else "PASS"
+        update_status("I2C2", status, component_status)
 
-    for comp, signal in components.items():
-        if psense_only and comp not in ["Psense Voltage", "Psense Current"]:
-            continue
-        
-        if signal in line:
-            if comp in ["I2C1", "I2C2"]:
-                status = "FAIL" if "ERROR" in line else "PASS"
-            else:
-                value = float(line.split()[-2])
-                status = "PASS" if value > 5.0 else "FAIL"
-            update_status(comp, status, component_status)
+def parse_psense_output(line, component_status):
+    if "AP: Psense Voltage:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 5.0 else "FAIL"
+        update_status("Psense Voltage", status, component_status)
+    elif "AP: Psense Current:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 2.0 else "FAIL"
+        update_status("Psense Current", status, component_status)
+    evaluate_psense_overall(component_status)
+
+def parse_adc_output(line, component_status):
+    if "AP: Rangefinder Distance:" in line:
+        value = float(line.split()[-2])
+        status = "PASS" if value > 11.5 else "FAIL"
+        update_status("ADC", status, component_status)
 
 def update_status(component, status, component_status):
     if component_status.get(component) != status or component not in component_status:
-        print_status(component, status == "PASS")
         component_status[component] = status
         if "PSENSE" in component or "Voltage" in component or "Current" in component:
             evaluate_psense_overall(component_status)
@@ -185,13 +190,13 @@ def evaluate_psense_overall(component_status):
     if all(c in component_status for c in components):
         overall = "PASS" if all(component_status[c] == "PASS" for c in components) else "FAIL"
         if component_status.get("PSENSE Overall") != overall:
-            print_status("PSENSE Overall", overall == "PASS")
             component_status["PSENSE Overall"] = overall
 
-def print_status(component, condition):
-    color = Fore.GREEN if condition else Fore.RED
-    status = "PASS" if condition else "FAIL"
-    print(f"{color}{component}: {status}{Style.RESET_ALL}")
+def print_status(status_dict):
+    for component, condition in status_dict.items():
+        color = Fore.GREEN if condition == "PASS" else Fore.RED
+        status = "PASS" if condition == "PASS" else "FAIL"
+        print(f"{color}{component}: {status}{Style.RESET_ALL}")
 
 def adb_connection():
     adb_root = subprocess.run(['adb', 'root'], capture_output=True, text=True)
@@ -207,14 +212,16 @@ def adb_connection():
 
 def configure_gpio(adb_shell, gpio, value):
     try:
-        adb_shell.stdin.write(f"echo {gpio} > /sys/class/gpio/export\n")
+        # Check if the GPIO is already exported
+        check_export_cmd = f"[ -d /sys/class/gpio/gpio{gpio} ] || echo {gpio} > /sys/class/gpio/export\n"
+        adb_shell.stdin.write(check_export_cmd)
+        adb_shell.stdin.flush()
+        
+        direction_cmd = f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {value} > /sys/class/gpio/gpio{gpio}/value\n"
+        adb_shell.stdin.write(direction_cmd)
         adb_shell.stdin.flush()
     except Exception as e:
-        print(f"{Fore.RED}GPIO {gpio} may already be exported: {e}{Style.RESET_ALL}")
-    
-    direction_cmd = f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {value} > /sys/class/gpio/gpio{gpio}/value\n"
-    adb_shell.stdin.write(direction_cmd)
-    adb_shell.stdin.flush()
+        print(f"{Fore.RED}An error occurred while configuring GPIO {gpio}: {e}{Style.RESET_ALL}")
 
 def test_serial_2():
     try:
@@ -236,11 +243,9 @@ def test_serial_2():
         while True:
             output = adb_shell.stdout.readline()
             if "Detected vehicle" in output:
-                print(f"{Fore.GREEN}Serial 2: PASS{Style.RESET_ALL}")
                 adb_shell.terminate()
                 return "PASS"
             elif "link 1 down" in output or not output:
-                print(f"{Fore.RED}Serial 2: FAIL{Style.RESET_ALL}")
                 adb_shell.terminate()
                 return "FAIL"
 
@@ -264,13 +269,10 @@ def test_serial_line(adb_shell, gpio1, gpio2, serial_number):
     while time.time() - start_time < 10:
         output = adb_shell.stdout.readline()
         if "Detected vehicle" in output:
-            print_status(f"Serial {serial_number}", True)
             return "PASS"
         elif "link 1 down" in output or not output:
-            print_status(f"Serial {serial_number}", False)
             return "FAIL"
 
-    print_status(f"Serial {serial_number}", False)
     return "FAIL"
 
 def integrate_serial_test(component_status, line_number, line_config):
@@ -290,13 +292,16 @@ def setup_can_interface(adb_shell):
 def configure_can_gpio(adb_shell, gpio_a, gpio_b):
     for gpio in [370, 371]:
         try:
-            adb_shell.stdin.write(f"echo {gpio} > /sys/class/gpio/export\n")
+            # Check if the GPIO is already exported
+            check_export_cmd = f"[ -d /sys/class/gpio/gpio{gpio} ] || echo {gpio} > /sys/class/gpio/export\n"
+            adb_shell.stdin.write(check_export_cmd)
+            adb_shell.stdin.flush()
+            
+            adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {gpio_a} > /sys/class/gpio/gpio{gpio}/value\n")
+            adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {gpio_b} > /sys/class/gpio/gpio{gpio}/value\n")
             adb_shell.stdin.flush()
         except Exception as e:
-            print(f"{Fore.RED}GPIO {gpio} may already be exported: {e}{Style.RESET_ALL}")
-    adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio370/direction; echo {gpio_a} > /sys/class/gpio/gpio370/value\n")
-    adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio371/direction; echo {gpio_b} > /sys/class/gpio/gpio371/value\n")
-    adb_shell.stdin.flush()
+            print(f"{Fore.RED}An error occurred while configuring CAN GPIO {gpio}: {e}{Style.RESET_ALL}")
 
 def test_can_line(adb_shell, can_number, gpio_a, gpio_b):
     configure_can_gpio(adb_shell, gpio_a, gpio_b)
@@ -315,10 +320,8 @@ def test_can_line(adb_shell, can_number, gpio_a, gpio_b):
             line = adb_shell.stdout.readline()
             if pattern.match(line.strip()):
                 valid_packets.append(line.strip())
-                print_status(f"CAN {can_number}", True)
                 return "PASS"
 
-    print_status(f"CAN {can_number}", False)
     return "FAIL"
 
 def integrate_can_test(component_status, can_number, gpio_a, gpio_b):
@@ -340,33 +343,74 @@ def generate_test_result_json(component_status, qr_code, logs_dir, final_firmwar
     with open(json_path, "w") as json_file:
         json.dump(test_results, json_file, indent=4)
     print(f"{Fore.GREEN}Generated JSON file with test results at: {json_path}{Style.RESET_ALL}")
+    return json_path
 
-def test_psense_cable(component_status):
+def generate_reports(json_path):
+    try:
+        subprocess.run(["python3", REPORT_SCRIPT_PATH, json_path, CUBE_IMAGE_PATH], check=True)
+        print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
+    except subprocess.CalledProcessError as e:
+        print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
+
+def test_psense_cable(component_status, log_file_path):
     cube_orange_port = find_cube_orange_port()
     if cube_orange_port is None:
         print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
         return
     
-    print(f"{Fore.YELLOW}Connecting to MAVProxy...{Style.RESET_ALL}")
+    print(f"\n{Fore.YELLOW}5. Testing PSENSE{Style.RESET_ALL}\n")
     mavproxy_process = connect_mavproxy(cube_orange_port)
     
     finished_event = threading.Event()
-    log_file_path = os.path.join(LOG_DIR, "mavproxy_psense_logs.txt")
     
-    print(f"{Fore.YELLOW}Reading MAVProxy output...{Style.RESET_ALL}")
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, True), daemon=True)
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
     thread.start()
     finished_event.wait()
     mavproxy_process.terminate()
+    keyboard = Controller()
+    keyboard.press('\n')
+    keyboard.release('\n')
+
+def test_adc(component_status, log_file_path):
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return
     
-    evaluate_psense_overall(component_status)
+    print(f"\n{Fore.YELLOW}6. Testing ADC{Style.RESET_ALL}\n")
+    mavproxy_process = connect_mavproxy(cube_orange_port)
     
-    print(f"{Fore.GREEN if component_status['PSENSE Overall'] == 'PASS' else Fore.RED}Psense Cable Test Completed.{Style.RESET_ALL}")
-    for component, status in component_status.items():
-        if component in ["Psense Voltage", "Psense Current", "PSENSE Overall"]:
-            print(f"{Fore.GREEN if status == 'PASS' else Fore.RED}{component}: {status}{Style.RESET_ALL}")
+    finished_event = threading.Event()
+    
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_adc_output), daemon=True)
+    thread.start()
+    finished_event.wait()
+    mavproxy_process.terminate()
+    keyboard = Controller()
+    keyboard.press('\n')
+    keyboard.release('\n')
+
+def test_i2c(component_status, log_file_path):
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.YELLOW}7. Testing I2C{Style.RESET_ALL}\n")
+    mavproxy_process = connect_mavproxy(cube_orange_port)
+    
+    finished_event = threading.Event()
+    
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_i2c_output), daemon=True)
+    thread.start()
+    finished_event.wait()
+    mavproxy_process.terminate()
+    keyboard = Controller()
+    keyboard.press('\n')
+    keyboard.release('\n')
 
 def test_pwm_outputs(master):
+    print(f"\n{Fore.YELLOW}1. Starting PWM MAIN and AUX Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
     def set_servo_function(servo, function):
         master.mav.param_set_send(
             master.target_system,
@@ -380,9 +424,11 @@ def test_pwm_outputs(master):
     def test_servo_output(servo_start, servo_end, description):
         for i in range(servo_start, servo_end + 1):
             set_servo_function(i, 136)  # Set to high max
-        response = input(f"{Fore.YELLOW}Press if {description} LEDs are glowing (y/n): {Style.RESET_ALL}").strip().lower()
-        while response not in ['y', 'n']:
-            response = input("Invalid input. Please enter 'y' or 'n': ").strip().lower()
+        while True:
+            response = input(f"{Fore.YELLOW}Press if {description} LEDs are glowing (y/n): {Style.RESET_ALL}").strip().lower()
+            if response in ['y', 'n']:
+                break
+            print("Invalid input. Please enter 'y' or 'n':")
         for i in range(servo_start, servo_end + 1):
             set_servo_function(i, 0)  # Disable the servos
         return response == 'y'
@@ -400,13 +446,13 @@ def test_pwm_outputs(master):
 def test_radio_status(component_status):
     mavproxy_process = connect_mavproxy(find_cube_orange_port())
 
-    print(f"{Fore.YELLOW}\nReading MAVProxy output for radio status...{Style.RESET_ALL}\n")
+    print(f"{Fore.YELLOW}\n2. Testing PPM and SBUSo...{Style.RESET_ALL}\n")
     input(f"{Fore.CYAN}Hold the safety switch until it Blinks Red, then press Enter. {Style.RESET_ALL}")
 
     try:
         radio_status = "FAIL"
         start_time = time.time()
-        while time.time() - start_time < 30:
+        while time.time() - start_time < 15:
             line = mavproxy_process.stdout.readline().strip()
             if "Radio Connected" in line:
                 radio_status = "PASS"
@@ -414,11 +460,12 @@ def test_radio_status(component_status):
             elif "Radio Disconnected" in line:
                 radio_status = "FAIL"
                 break
-        print(f"\n{Fore.YELLOW}Radio Test Completed.{Style.RESET_ALL}")
-        print_status("PPM and SBUSo", radio_status == "PASS")
         component_status["PPM and SBUSo"] = radio_status
     finally:
         mavproxy_process.terminate()
+        keyboard = Controller()
+        keyboard.press('\n')
+        keyboard.release('\n')
 
 def main_menu():
     print(f"{Fore.CYAN}Select an option:{Style.RESET_ALL}")
@@ -426,75 +473,103 @@ def main_menu():
     print(f"{Fore.YELLOW}2. Load Release Firmware{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}3. Load Test Firmware{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}4. Psense Cable Test{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}5. Reboot Flight Controller{Style.RESET_ALL}")
     choice = ''
-    while choice not in ['1', '2', '3', '4']:
-        choice = input(f"{Fore.CYAN}Enter your choice (1/2/3/4): {Style.RESET_ALL}").strip()
+    while choice not in ['1', '2', '3', '4', '5']:
+        choice = input(f"{Fore.CYAN}Enter your choice (1/2/3/4/5): {Style.RESET_ALL}").strip()
     return choice
 
-def main():
-    choice = main_menu()
+def run_all_tests(qr_code):
     component_status = {}
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    folder_name = f"{qr_code}_{timestamp}"
+    production_test_folder = os.path.join(os.path.expanduser("~"), "Desktop", "Production_Test")
+    specific_folder_path = os.path.join(production_test_folder, folder_name)
+    os.makedirs(specific_folder_path, exist_ok=True)
+    log_file_path = os.path.join(specific_folder_path, "mavproxy_logs.txt")
+
+    firmware_version = get_firmware_version()
+    print(firmware_version)
+
+    if "dev-4.6.0" not in firmware_version:
+        load_firmware(FIRMWARE_TEST_PATH, "Test")
+    
+    print(get_firmware_version())
+
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return component_status, specific_folder_path, False
+
+    master = mavutil.mavlink_connection(cube_orange_port, baud=115200)
+    master.wait_heartbeat()
+    pwm_results = test_pwm_outputs(master)
+    component_status.update(pwm_results)
+    print_status(pwm_results)
+
+    test_radio_status(component_status)
+    print_status({"PPM and SBUSo": component_status["PPM and SBUSo"]})
+    
+    print(f"\n{Fore.YELLOW}3. Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
+    integrate_serial_test(component_status, 1, [0, 0])
+    integrate_serial_2_test(component_status)
+    integrate_serial_test(component_status, 3, [0, 1])
+    integrate_serial_test(component_status, 4, [1, 0])
+    integrate_serial_test(component_status, 5, [1, 1])
+    print_status({f"Serial {i}": component_status[f"Serial {i}"] for i in range(1, 6)})
+
+    print(f"\n{Fore.YELLOW}4. Starting CAN Tests through Flight Computer...{Style.RESET_ALL}\n")
+    integrate_can_test(component_status, 1, 1, 1)
+    integrate_can_test(component_status, 2, 0, 0)
+    print_status({f"CAN {i}": component_status[f"CAN {i}"] for i in range(1, 3)})
+
+    test_psense_cable(component_status, os.path.join(specific_folder_path, "mavproxy_psense_logs.txt"))
+    print_status({"Psense Voltage": component_status["Psense Voltage"], "Psense Current": component_status["Psense Current"], "PSENSE Overall": component_status["PSENSE Overall"]})
+
+    test_adc(component_status, os.path.join(specific_folder_path, "mavproxy_adc_logs.txt"))
+    print_status({"ADC": component_status["ADC"]})
+
+    test_i2c(component_status, os.path.join(specific_folder_path, "mavproxy_i2c_logs.txt"))
+    print_status({"I2C1": component_status["I2C1"], "I2C2": component_status["I2C2"]})
+
+    return component_status, specific_folder_path, True
+
+def main():
     qr_code = ""
-    final_firmware_version = ""
+    choice = main_menu()
 
     if choice == '1':
         qr_code = input(f"{Fore.CYAN}Scan QR code on the board: {Style.RESET_ALL}")
         print(f"{Fore.GREEN}QR code scanned: {qr_code}{Style.RESET_ALL}")
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        folder_name = f"{qr_code}_{timestamp}"
-        production_test_folder = os.path.join(os.path.expanduser("~"), "Desktop", "Production_Test")
-        specific_folder_path = os.path.join(production_test_folder, folder_name)
-        os.makedirs(specific_folder_path, exist_ok=True)
-        log_file_path = os.path.join(specific_folder_path, "mavproxy_logs.txt")
-        
-        load_firmware(FIRMWARE_TEST_PATH, "Test")
-        print(get_firmware_version())
+        component_status, specific_folder_path, success = run_all_tests(qr_code)
 
-        cube_orange_port = find_cube_orange_port()
-        if cube_orange_port is None:
-            print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
-            return
+        failed_tests = [component for component, status in component_status.items() if status != "PASS"]
 
-        # Move the tests for PWM motors and PPM SBUSo here
-        master = mavutil.mavlink_connection(cube_orange_port, baud=115200)
-        master.wait_heartbeat()
-        
-        input(f"{Fore.YELLOW}\nPress Enter to Proceed for MAIN & AUX Out tests:{Style.RESET_ALL}")
-        pwm_results = test_pwm_outputs(master)
-        component_status.update(pwm_results)
+        if failed_tests:
+            print(f"{Fore.RED}One or more tests failed: {failed_tests}. Generating report and ending tests...{Style.RESET_ALL}")
+            json_path = generate_test_result_json(component_status, qr_code, specific_folder_path, "Test Dev-4.6.0")
+            generate_reports(json_path)
+        else:
+            load_firmware(FIRMWARE_FINAL_PATH, "Release")
+            final_firmware_version = get_firmware_version()
+            print(final_firmware_version)
+            integrate_serial_2_test(component_status)
 
-        test_radio_status(component_status)
+            print(f"{Fore.GREEN}Flight Controller Unit has Completed All the tests and is Ready to use.{Style.RESET_ALL}")
+            generate_test_result_json(component_status, qr_code, specific_folder_path, final_firmware_version)
 
-        mavproxy_process = connect_mavproxy(cube_orange_port)
-        finished_event = threading.Event()
-        thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, False), daemon=True)
-        thread.start()
-        finished_event.wait()
-        mavproxy_process.terminate()
-
-
-
-        print(f"\n{Fore.YELLOW}Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
-        integrate_serial_test(component_status, 1, [0, 0])
-        integrate_serial_2_test(component_status)
-        integrate_serial_test(component_status, 3, [0, 1])
-        integrate_serial_test(component_status, 4, [1, 0])
-        integrate_serial_test(component_status, 5, [1, 1])
-
-        integrate_can_test(component_status, 1, 1, 1)
-        integrate_can_test(component_status, 2, 0, 0)
-
-        load_firmware(FIRMWARE_FINAL_PATH, "Release")
-        final_firmware_version = get_firmware_version()
-        print(final_firmware_version)
-        integrate_serial_2_test(component_status)
-        print(f"{Fore.GREEN}Flight Controller Unit has Completed All the tests and is Ready to use.{Style.RESET_ALL}")
-
+            try:
+                json_file_path = os.path.join(specific_folder_path, "test_results.json")
+                subprocess.run(["python3", REPORT_SCRIPT_PATH, json_file_path, CUBE_IMAGE_PATH], check=True)
+                print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
+            except subprocess.CalledProcessError as e:
+                print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
     elif choice == '2':
         load_firmware(FIRMWARE_FINAL_PATH, "Release")
         final_firmware_version = get_firmware_version()
-        integrate_serial_2_test(component_status)
         print(final_firmware_version)
+        integrate_serial_2_test(component_status)
+
         print(f"{Fore.GREEN}Flight Controller Unit is Ready to use.{Style.RESET_ALL}")
 
     elif choice == '3':
@@ -502,17 +577,10 @@ def main():
         print(get_firmware_version())
 
     elif choice == '4':
-        test_psense_cable(component_status)
+        test_psense_cable({}, os.path.join(PRODUCTION_TEST_FOLDER, "mavproxy_psense_logs.txt"))
 
-    if choice in ['1']:
-        generate_test_result_json(component_status, qr_code, specific_folder_path, final_firmware_version)
-
-        try:
-            json_file_path = os.path.join(specific_folder_path, "test_results.json")
-            subprocess.run(["python3", REPORT_SCRIPT_PATH, json_file_path, CUBE_IMAGE_PATH], check=True)
-            print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
-        except subprocess.CalledProcessError as e:
-            print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
+    elif choice == '5':
+        reboot_flight_controller()
 
 if __name__ == "__main__":
     main()
