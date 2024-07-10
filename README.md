@@ -115,7 +115,6 @@ Go to Config >> MAVFtp >> APM >> scripts ( Right Click and Upload all three scri
 
    ```
    cd ~/Desktop/FlightControllerTestSuite
-   python3 scripts/main_test_script_upt.py
    ```
    ```
    python3 scripts/main_test_script.py
