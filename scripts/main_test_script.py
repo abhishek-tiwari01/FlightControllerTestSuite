@@ -410,7 +410,7 @@ def test_i2c(component_status, log_file_path):
     keyboard.release('\n')
 
 def test_pwm_outputs(master):
-    print(f"\n{Fore.YELLOW}1. Starting PWM MAIN and AUX Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
+    print(f"\n{Fore.YELLOW}1. Running PWM AUX and MAIN Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
     def set_servo_function(servo, function):
         master.mav.param_set_send(
             master.target_system,
@@ -432,15 +432,18 @@ def test_pwm_outputs(master):
         for i in range(servo_start, servo_end + 1):
             set_servo_function(i, 0)  # Disable the servos
         return response == 'y'
-
+    
+    aux_out_1_6 = test_servo_output(9, 14, "AUX OUT 1-6")
     main_out_1_4 = test_servo_output(1, 4, "MAIN OUT 1-4")
     main_out_5_8 = test_servo_output(5, 8, "MAIN OUT 5-8")
-    aux_out_1_6 = test_servo_output(9, 14, "AUX OUT 1-6")
+   
 
     return {
+
+        "AUX OUT 1-6": "PASS" if aux_out_1_6 else "FAIL",
         "MAIN OUT 1-4": "PASS" if main_out_1_4 else "FAIL",
-        "MAIN OUT 5-8": "PASS" if main_out_5_8 else "FAIL",
-        "AUX OUT 1-6": "PASS" if aux_out_1_6 else "FAIL"
+        "MAIN OUT 5-8": "PASS" if main_out_5_8 else "FAIL"
+
     }
 
 def test_radio_status(component_status):
