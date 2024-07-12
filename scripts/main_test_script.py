@@ -82,7 +82,8 @@ def get_firmware_version():
 
     try:
         master = mavutil.mavlink_connection(port, baud=115200)
-        master.wait_heartbeat(timeout= 15)
+        print(f"{Fore.CYAN}Searching for Firmware...{Style.RESET_ALL}")
+        master.wait_heartbeat(timeout= 5)
 
         master.mav.command_long_send(
             master.target_system,
@@ -99,7 +100,7 @@ def get_firmware_version():
             vehicle_type = get_vehicle_type(master)
             return f"Vehicle: {vehicle_type}, Firmware version: {firmware_version}"
         else:
-            return f"{Fore.RED}Firmware not flashed or not responding.{Style.RESET_ALL}"
+            return f"{Fore.CYAN}Firmware not found Flashed, \nFlashing...{Style.RESET_ALL}"
     except Exception as e:
         return f"{Fore.RED}An error occurred: {e}{Style.RESET_ALL}"
 
@@ -199,19 +200,25 @@ def print_status(status_dict):
         print(f"{color}{component}: {status}{Style.RESET_ALL}")
 
 def adb_connection():
-    adb_root = subprocess.run(['adb', 'root'], capture_output=True, text=True)
-    if adb_root.returncode != 0 or 'cannot run as root' in adb_root.stderr.lower():
-        print(f"{Fore.RED}Failed to obtain root access.{Style.RESET_ALL}")
-        return None
-
-    adb_shell = subprocess.Popen(['adb', 'shell'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
-    adb_shell.stdin.write("su\n")
-    adb_shell.stdin.flush()
-    time.sleep(1)
-    return adb_shell
+    retries = 3
+    for _ in range(retries):
+        subprocess.run(['adb', 'start-server'], capture_output=True, text=True)
+        adb_root = subprocess.run(['adb', 'root'], capture_output=True, text=True)
+        if adb_root.returncode == 0 and 'cannot run as root' not in adb_root.stderr.lower() and 'no devices/emulators found' not in adb_root.stderr.lower():
+            adb_shell = subprocess.Popen(['adb', 'shell'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+            adb_shell.stdin.write("su\n")
+            adb_shell.stdin.flush()
+            time.sleep(1)
+            return adb_shell
+        time.sleep(5)
+    print(f"{Fore.RED}Couldn't Establish adb connection, please check.{Style.RESET_ALL}")
+    return None
 
 def configure_gpio(adb_shell, gpio, value):
     try:
+        if adb_shell.poll() is not None:
+            raise BrokenPipeError("adb shell process is not running.")
+        
         # Check if the GPIO is already exported
         check_export_cmd = f"[ -d /sys/class/gpio/gpio{gpio} ] || echo {gpio} > /sys/class/gpio/export\n"
         adb_shell.stdin.write(check_export_cmd)
@@ -225,16 +232,9 @@ def configure_gpio(adb_shell, gpio, value):
 
 def test_serial_2():
     try:
-        adb_root = subprocess.run(['adb', 'root'], capture_output=True, text=True)
-        if adb_root.returncode != 0 or 'cannot run as root' in adb_root.stderr.lower():
-            print(f"{Fore.RED}Failed to obtain root access.{Style.RESET_ALL}")
+        adb_shell = adb_connection()
+        if not adb_shell:
             return "FAIL"
-
-        adb_shell = subprocess.Popen(['adb', 'shell'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
-
-        adb_shell.stdin.write("su\n")
-        adb_shell.stdin.flush()
-        time.sleep(1)
 
         mav_command = "mavproxy.py --master=/dev/ttyHS1 --baudrate=921600 --aircraft MyCopter\n"
         adb_shell.stdin.write(mav_command)
@@ -290,9 +290,11 @@ def setup_can_interface(adb_shell):
     adb_shell.stdin.flush()
 
 def configure_can_gpio(adb_shell, gpio_a, gpio_b):
-    for gpio in [370, 371]:
-        try:
-            # Check if the GPIO is already exported
+    try:
+        if adb_shell.poll() is not None:
+            raise BrokenPipeError("adb shell process is not running.")
+        
+        for gpio in [370, 371]:
             check_export_cmd = f"[ -d /sys/class/gpio/gpio{gpio} ] || echo {gpio} > /sys/class/gpio/export\n"
             adb_shell.stdin.write(check_export_cmd)
             adb_shell.stdin.flush()
@@ -300,8 +302,8 @@ def configure_can_gpio(adb_shell, gpio_a, gpio_b):
             adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {gpio_a} > /sys/class/gpio/gpio{gpio}/value\n")
             adb_shell.stdin.write(f"echo out > /sys/class/gpio/gpio{gpio}/direction; echo {gpio_b} > /sys/class/gpio/gpio{gpio}/value\n")
             adb_shell.stdin.flush()
-        except Exception as e:
-            print(f"{Fore.RED}An error occurred while configuring CAN GPIO {gpio}: {e}{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}An error occurred while configuring CAN GPIO {gpio}: {e}{Style.RESET_ALL}")
 
 def test_can_line(adb_shell, can_number, gpio_a, gpio_b):
     configure_can_gpio(adb_shell, gpio_a, gpio_b)
@@ -370,6 +372,7 @@ def test_psense_cable(component_status, log_file_path):
     keyboard = Controller()
     keyboard.press('\n')
     keyboard.release('\n')
+    print_status({"Psense Voltage": component_status["Psense Voltage"], "Psense Current": component_status["Psense Current"], "PSENSE Overall": component_status["PSENSE Overall"]})
 
 def test_adc(component_status, log_file_path):
     cube_orange_port = find_cube_orange_port()
@@ -389,6 +392,7 @@ def test_adc(component_status, log_file_path):
     keyboard = Controller()
     keyboard.press('\n')
     keyboard.release('\n')
+    print_status({"ADC": component_status["ADC"]})
 
 def test_i2c(component_status, log_file_path):
     cube_orange_port = find_cube_orange_port()
@@ -408,6 +412,7 @@ def test_i2c(component_status, log_file_path):
     keyboard = Controller()
     keyboard.press('\n')
     keyboard.release('\n')
+    print_status({"I2C1": component_status["I2C1"], "I2C2": component_status["I2C2"]})
 
 def test_pwm_outputs(master):
     print(f"\n{Fore.YELLOW}1. Running PWM AUX and MAIN Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
@@ -469,14 +474,15 @@ def test_radio_status(component_status):
         keyboard = Controller()
         keyboard.press('\n')
         keyboard.release('\n')
+    print_status({"PPM and SBUSo": component_status["PPM and SBUSo"]})
 
 def main_menu():
     print(f"{Fore.CYAN}Select an option:{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}1. Test All Interfaces{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}2. Load Release Firmware{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}3. Load Test Firmware{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}4. Psense Cable Test{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}5. Reboot Flight Controller{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}2. Reboot Flight Controller{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}3. Load Release Firmware{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}4. Load Test Firmware{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}5. Psense Cable Test{Style.RESET_ALL}")
     choice = ''
     while choice not in ['1', '2', '3', '4', '5']:
         choice = input(f"{Fore.CYAN}Enter your choice (1/2/3/4/5): {Style.RESET_ALL}").strip()
@@ -511,7 +517,6 @@ def run_all_tests(qr_code):
     print_status(pwm_results)
 
     test_radio_status(component_status)
-    print_status({"PPM and SBUSo": component_status["PPM and SBUSo"]})
     
     print(f"\n{Fore.YELLOW}3. Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
     integrate_serial_test(component_status, 1, [0, 0])
@@ -527,21 +532,18 @@ def run_all_tests(qr_code):
     print_status({f"CAN {i}": component_status[f"CAN {i}"] for i in range(1, 3)})
 
     test_psense_cable(component_status, os.path.join(specific_folder_path, "mavproxy_psense_logs.txt"))
-    print_status({"Psense Voltage": component_status["Psense Voltage"], "Psense Current": component_status["Psense Current"], "PSENSE Overall": component_status["PSENSE Overall"]})
 
     test_adc(component_status, os.path.join(specific_folder_path, "mavproxy_adc_logs.txt"))
-    print_status({"ADC": component_status["ADC"]})
 
     test_i2c(component_status, os.path.join(specific_folder_path, "mavproxy_i2c_logs.txt"))
-    print_status({"I2C1": component_status["I2C1"], "I2C2": component_status["I2C2"]})
 
     return component_status, specific_folder_path, True
 
 def main():
-    qr_code = ""
     choice = main_menu()
 
     if choice == '1':
+        print(f"{Fore.YELLOW}Please Ensure SD Card with Lua Scripts Loaded in FCU.{Style.RESET_ALL}")
         qr_code = input(f"{Fore.CYAN}Scan QR code on the board: {Style.RESET_ALL}")
         print(f"{Fore.GREEN}QR code scanned: {qr_code}{Style.RESET_ALL}")
         component_status, specific_folder_path, success = run_all_tests(qr_code)
@@ -557,6 +559,7 @@ def main():
             final_firmware_version = get_firmware_version()
             print(final_firmware_version)
             integrate_serial_2_test(component_status)
+            print_status({"Serial 2": component_status["Serial 2"]})
 
             print(f"{Fore.GREEN}Flight Controller Unit has Completed All the tests and is Ready to use.{Style.RESET_ALL}")
             generate_test_result_json(component_status, qr_code, specific_folder_path, final_firmware_version)
@@ -567,23 +570,28 @@ def main():
                 print(f"{Fore.GREEN}Report generation script executed successfully.{Style.RESET_ALL}")
             except subprocess.CalledProcessError as e:
                 print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
+    
     elif choice == '2':
+        reboot_flight_controller()
+
+    elif choice == '3':
         load_firmware(FIRMWARE_FINAL_PATH, "Release")
+        component_status = {"Serial 2": "PASS"}  # Initialize the component_status dictionary
         final_firmware_version = get_firmware_version()
         print(final_firmware_version)
         integrate_serial_2_test(component_status)
+        print_status({"Serial 2": component_status["Serial 2"]})
 
         print(f"{Fore.GREEN}Flight Controller Unit is Ready to use.{Style.RESET_ALL}")
 
-    elif choice == '3':
+    elif choice == '4':
         load_firmware(FIRMWARE_TEST_PATH, "Test")
         print(get_firmware_version())
 
-    elif choice == '4':
-        test_psense_cable({}, os.path.join(PRODUCTION_TEST_FOLDER, "mavproxy_psense_logs.txt"))
-
     elif choice == '5':
-        reboot_flight_controller()
+        print(f"{Fore.YELLOW}Please Ensure Test Firmware and SD Card with Lua Scripts Loaded in FCU{Style.RESET_ALL}")
+        component_status = {}
+        test_psense_cable(component_status, os.path.join(PRODUCTION_TEST_FOLDER, "mavproxy_psense_logs.txt"))
 
 if __name__ == "__main__":
     main()
