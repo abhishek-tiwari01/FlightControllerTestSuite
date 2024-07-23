@@ -156,12 +156,15 @@ def read_output(process, component_status, log_file_path, finished_event, parse_
         finished_event.set()
 
 def parse_i2c_output(line, component_status):
-    if "AP: I2C1:" in line:
+    if "AP: I2C1 GPS1:" in line:
         status = "FAIL" if "ERROR" in line else "PASS"
-        update_status("I2C1", status, component_status)
-    elif "AP: I2C2:" in line:
+        update_status("I2C1 GPS1", status, component_status)
+    elif "AP: I2C0 GPS2:" in line:
         status = "FAIL" if "ERROR" in line else "PASS"
-        update_status("I2C2", status, component_status)
+        update_status("I2C0 GPS2", status, component_status)
+    elif "AP: I2C2 PORT:" in line:
+        status = "FAIL" if "ERROR" in line else "PASS"
+        update_status("I2C2 PORT", status, component_status)
 
 def parse_psense_output(line, component_status):
     if "AP: Psense Voltage:" in line:
@@ -412,7 +415,7 @@ def test_i2c(component_status, log_file_path):
     keyboard = Controller()
     keyboard.press('\n')
     keyboard.release('\n')
-    print_status({"I2C1": component_status["I2C1"], "I2C2": component_status["I2C2"]})
+    print_status({"I2C1 GPS1": component_status["I2C1 GPS1"], "I2C0 GPS2": component_status["I2C0 GPS2"], "I2C2 PORT": component_status["I2C2 PORT"]})
 
 def test_pwm_outputs(master):
     print(f"\n{Fore.YELLOW}1. Running PWM AUX and MAIN Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
