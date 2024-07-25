@@ -11,22 +11,15 @@ local arduino_i2c_1 = i2c.get_device(1, 0x09)
 local function read_register_data(arduino_i2c)
     local bytes = {}
     local size = arduino_i2c:read_registers(0)
-    if not size then return nil end
-    for idx = 1, size do
-        bytes[idx - 1] = arduino_i2c:read_registers(idx)
-    end
-    return bytes
+    if not size or size == 0 then return nil end
+    local data = arduino_i2c:read_registers(1)
+    return data
 end
 
--- Function to get string from character buffer
-local function get_string(b)
-    if type(b) ~= 'table' then return ERROR_STRING end
-    if not b[0] then return ERROR_STRING end
-    local str = ''
-    for x = 0, #b do
-        str = str .. string.char(b[x])
-    end
-    return str
+-- Function to convert byte to string
+local function get_string(byte)
+    if not byte then return ERROR_STRING end
+    return string.char(byte)
 end
 
 -- Function to update and send data
@@ -35,17 +28,21 @@ function update()
     local data_0 = read_register_data(arduino_i2c_0)
     local data_1 = read_register_data(arduino_i2c_1)
 
-    -- Check if received data is 'Tested' or 'ERROR' and send appropriate messages
-    if get_string(data_0) == 'Tested' then
-        gcs:send_text(MAV_SEVERITY_INFO, "I2C2: Tested")
+    -- Log data read for debugging purposes
+    gcs:send_text(MAV_SEVERITY_INFO, "Data read from I2C0: " .. tostring(get_string(data_0)))
+    gcs:send_text(MAV_SEVERITY_INFO, "Data read from I2C1: " .. tostring(get_string(data_1)))
+
+    -- Check if received data matches expected identifiers and send appropriate messages
+    if get_string(data_0) == '1' then
+        gcs:send_text(MAV_SEVERITY_INFO, "I2C0 GPS2: Tested")
     else
-        gcs:send_text(MAV_SEVERITY_INFO, "I2C2: ERROR")
+        gcs:send_text(MAV_SEVERITY_INFO, "I2C0 GPS2: ERROR")
     end
 
-    if get_string(data_1) == 'Tested' then
-        gcs:send_text(MAV_SEVERITY_INFO, "I2C1: Tested")
+    if get_string(data_1) == '1' then
+        gcs:send_text(MAV_SEVERITY_INFO, "I2C1 GPS1: Tested")
     else
-        gcs:send_text(MAV_SEVERITY_INFO, "I2C1: ERROR")
+        gcs:send_text(MAV_SEVERITY_INFO, "I2C1 GPS1: ERROR")
     end
 
     return update, RUN_INTERVAL_MS
