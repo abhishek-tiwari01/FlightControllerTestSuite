@@ -1149,10 +1149,10 @@ def main():
     # Load the firmware file
     if not args.download and not args.identify and not args.erase_extflash:
         fw = firmware(args.firmware)
-        print(colored("Searching for Cube Orange Plus", 'green'))
+        print(colored("Searching for Cube Orange Plus", 'blue'))
         # print("Loaded firmware for %x,%x, size: %d bytes, waiting for the bootloader..." %
         #       (fw.property('board_id'), fw.property('board_revision'), fw.property('image_size')))
-    print(colored("If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.", 'red'))
+    print(colored("If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.", 'yellow'))
 
     baud_flightstack = [int(x) for x in args.baud_flightstack.split(',')]
 
