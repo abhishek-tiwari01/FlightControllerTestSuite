@@ -508,7 +508,7 @@ def test_radio_status(component_status):
     mavproxy_process = connect_mavproxy(find_cube_orange_port())
 
     print(f"{Fore.CYAN}\n2. Testing PPM and SBUSo...{Style.RESET_ALL}\n")
-    input(f"{Fore.YELLOW}Hold the safety switch for 3 seconds until it starts Blinking Red, then press Enter.\n Please don't Press Switch if already Blinking.\n {Style.RESET_ALL}")
+    input(f"{Fore.YELLOW}Hold the safety switch for 3 seconds until it starts Blinking Red, then press Enter.\nPlease don't press if already Blinking.\n {Style.RESET_ALL}")
 
     try:
         radio_status = "FAIL"
@@ -623,12 +623,16 @@ def precheck():
     print(f"{Fore.YELLOW}2. Micro USB and Type-C USB is connected to Host Computer.{Style.RESET_ALL}")
     input(f"\n{Fore.CYAN}Press Enter to Continue.{Style.RESET_ALL}")
     
-    print(f"{Fore.YELLOW}Waiting for adb connection...{Style.RESET_ALL}")
-    result = subprocess.run(['adb', 'wait-for-device'], timeout=60, capture_output=True, text=True)
-    if result.returncode == 0:
-        print(f"{Fore.GREEN}ADB connection established. Devices are ready. Proceeding for test.{Style.RESET_ALL}")
-    else:
-        print(f"{Fore.RED}ADB connection is not proper. Please check and then rerun the test.{Style.RESET_ALL}")
+    print(f"\n{Fore.YELLOW}Waiting for adb connection...{Style.RESET_ALL}")
+    try:
+        result = subprocess.run(['adb', 'wait-for-device'], timeout=60, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"{Fore.GREEN}ADB connection established. Devices are ready. Proceeding for test.{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}adb connection is not proper. Please check and then rerun the test.{Style.RESET_ALL}")
+            exit(1)
+    except subprocess.TimeoutExpired:
+        print(f"{Fore.RED}adb connection couldn't be estabilished. Please check the connection and try again.{Style.RESET_ALL}")
         exit(1)
 
 def main():
