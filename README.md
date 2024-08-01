@@ -17,10 +17,11 @@ The structure includes:
 ## Repository Structure
 ```
 FlightControllerTestSuite/
-
+   ├── Production_Test
+   | └──Specific_Test_Folders
    ├── firmware/ # Firmware files and scripts
-   │ ├── ArducopterTest4.6.0-dev_images/bin/arducopter.apj
-   │ ├── ArducopterFinal4.5.2_images/bin/arducopter.apj
+   │ ├── ArducopterTest4.6.0-dev_images/arducopter.apj
+   │ ├── ArducopterFinal4.5.2_images/arducopter.apj
    │ └── uploader.py
    ├── scripts/ # Test and report generation scripts
    │ ├── main_test_script.py
@@ -33,6 +34,7 @@ FlightControllerTestSuite/
    │ ├── rc.lua
    │ ├── psense.lua
    │ ├── I2C.lua
+   | ├── I2C2.lua
    │ └── Arduino
    │     └── I2C_tests.ino
    └── README.md # Documentation
@@ -52,8 +54,8 @@ sudo apt install git
 ### Setup Instructions
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/abhishek-tiwari01/FlightControllerTestSuite.git
-   cd FlightControllerTestSuite
+   git clone git@vault.mistralsolutions.com:qrb5165_flight_kit/ifb_prd_test_scripts.git
+   cd ifb_prd_test_scripts/FlightControllerTestSuite
    chmod -R +x .
    ```
 
@@ -71,17 +73,6 @@ sudo apt install git
 3. **Test Environment Setup**:
    **Hardware Connections**
    Connect your Cube Orange and Flight Computer to the host machine via USB cables. Ensure all necessary peripherals are connected (e.g., FCU Testjig, SPPM Module, Safety Switch).
-
-   **SD Card Setup**
-   Make sure the SD card with Lua scripts loaded is inserted before running the tests. Once the SD card is prepared with Lua scripts, it can be used across all the FCUs by swapping.
-
-   Preparing the SD Card:
-   - Take an SD card from Cube Orange Plus FCU.
-   - Insert the SD card into your computer.
-   - Create the `APM/scripts` directory.
-   - Copy the Lua scripts (rc.lua, psense.lua, I2C.lua) from the `lua_scripts` directory in the repository to the `APM/scripts` directory on the SD card.
-   - Open MissionPlanner, establish a connection with FCU.
-   - Go to Config >> MAVFtp >> APM >> scripts (Right Click and Upload all three scripts (rc.lua, psense.lua, I2C.lua)).
 
 ## Test Procedure
 
@@ -102,10 +93,9 @@ sudo apt install git
    - **ADC**
    - **LED relay**
    - **PPM and SBUSo with SPPM Module**
-4. **Swap the SD card loaded with Lua script into the Cube.**
-5. **Power On the System.**
-6. **Connect the IFB with Type-C and the add-on test jig with microUSB to the Host-PC.**
-7. **Open Terminal and start the test by running the following command inside the `FlightControllerTestSuite` directory:**
+4. **Power On the System.**
+5. **Connect the IFB with Type-C and the add-on test jig with microUSB to the Host-PC.**
+6. **Open Terminal and start the test by running the following command inside the `FlightControllerTestSuite` directory:**
 
    ```bash
    cd ~/Desktop/FlightControllerTestSuite
@@ -145,7 +135,7 @@ Release Firmware Loading:
 - Performs a final Serial 2 test to ensure connectivity with the Eagle Board.
 
 **Report Generation:**
-- Generates test results, saved in the `~/Desktop/Production_Test` folder.
+- Generates test results, saved in the `~/Desktop/FlightControllerTestSuite/Production_Test` folder.
 
 **Select Option 1: Press 1 and Press Enter.**
 Now, 
@@ -166,29 +156,6 @@ This option will First ask you to scan the QR Code. So, scan the QR Code placed 
    Loading Test firmware...
    Loaded firmware for 427,0, size: 1835112 bytes, waiting for the bootloader...
    If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.
-   Attempting reboot on /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if00 with baudrate=57600...
-   If the board does not respond, unplug and re-plug the USB connector.
-   Exception creating uploader: [Errno 2] could not open port /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02'
-   Found board 427,0 bootloader rev 5 on /dev/serial/by-id/usb-CubePilot_CubeOrange+-BL_1D0035000851323138363132-if00
-   Bootloader Protocol: 5
-   OTP:
-     type: 
-     idtype: =00
-     vid: 00000000
-     pid: 00000000
-     coa: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-     sn: 0035001d3132510832313638
-   ChipDes:
-     family: STM32H743/753
-     revision: V
-   Chip:
-     STM32H74x_75x 20036450
-   Info:
-     flash size: 1966080
-     ext flash size: 0
-     board_type: 1063
-     board_rev: 0
-   Identification complete
    
    Erase  : [====================] 100.0% (timeout: 7 seconds) 
    Program: [====================] 100.0%
@@ -267,29 +234,6 @@ In case, if Test Script Crashes or Does Not Respond or any Error Occurs Please C
    ```
    Loaded firmware for 427,0, size: 1817396 bytes, waiting for the bootloader...
    If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.
-   Attempting reboot on /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if00 with baudrate=57600...
-   If the board does not respond, unplug and re-plug the USB connector.
-   Exception creating uploader: [Errno 2] could not open port /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02'
-   Found board 427,0 bootloader rev 5 on /dev/serial/by-id/usb-CubePilot_CubeOrange+-BL_1D0035000851323138363132-if00
-   Bootloader Protocol: 5
-   OTP:
-     type: 
-     idtype: =00
-     vid: 00000000
-     pid: 00000000
-     coa: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-     sn: 0035001d3132510832313638
-   ChipDes:
-     family: STM32H743/753
-     revision: V
-   Chip:
-     STM32H74x_75x 20036450
-   Info:
-     flash size: 1966080
-     ext flash size: 0
-     board_type: 1063
-     board_rev: 0
-   Identification complete
    
    Erase  : [====================] 100.0% (timeout: 5 seconds) 
    Program: [====================] 100.0%
@@ -306,7 +250,7 @@ In case, if Test Script Crashes or Does Not Respond or any Error Occurs Please C
    ```
    Once Release Firmware is loaded it will proceed for Serial 2 Test to ensure connectivity with Eagle Board.
 Then, It Will Generate the Test Results, which can be found in
- ~/Desktop/Production_Test Folder.
+ ~/Desktop/FlightControllerTestSuite/Production_Test Folder.
 
 **Generated Reports:**
 
@@ -324,14 +268,20 @@ And Specific Test Folder will consist of following files.
 
 **Test_Report_test123.pdf:** This PDF file will consist of final test results along with, Scanned QR code, date, timestamp, loaded firmware version, Test Information and Status.
 
-### Option 2: Reboot Flight Controller
-- Sends Reboot Command to the Flight Controller.
+### Option 2: Psense Cable Test
+- Runs a dedicated test for the Psense cable.
 
-1. **Select Option 2: Press 2 and Press Enter.**
+1. **Select Option 5: Press 5 and Press Enter.**
    ```
-   Enter your choice (1/2/3/4/5): 2
-   Heartbeat received from the flight controller.
-   Reboot command sent to the flight controller.
+   Enter your choice (1/2/3/4/5): 5
+   Please Ensure Test Firmware and SD Card with Lua Scripts Loaded in FCU
+   ```
+   
+2. **Testing PSENSE**
+   ```
+   Psense Voltage: PASS
+   Psense Current: PASS
+   PSENSE Overall: PASS
    ```
 
 ### Option 3: Load Release Firmware
@@ -343,29 +293,6 @@ And Specific Test Folder will consist of following files.
    Loading Release firmware...
    Loaded firmware for 427,0, size: 1817396 bytes, waiting for the bootloader...
    If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.
-   Attempting reboot on /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if00 with baudrate=57600...
-   If the board does not respond, unplug and re-plug the USB connector.
-   Exception creating uploader: [Errno 2] could not open port /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02'
-   Found board 427,0 bootloader rev 5 on /dev/serial/by-id/usb-CubePilot_CubeOrange+-BL_1D0035000851323138363132-if00
-   Bootloader Protocol: 5
-   OTP:
-     type: 
-     idtype: =00
-     vid: 00000000
-     pid: 00000000
-     coa: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-     sn: 0035001d3132510832313638
-   ChipDes:
-     family: STM32H743/753
-     revision: V
-   Chip:
-     STM32H74x_75x 20036450
-   Info:
-     flash size: 1966080
-     ext flash size: 0
-     board_type: 1063
-     board_rev: 0
-   Identification complete
    
    Erase  : [====================] 100.0% (timeout: 7 seconds) 
    Program: [====================] 100.0%
@@ -386,29 +313,6 @@ And Specific Test Folder will consist of following files.
    Loading Test firmware...
    Loaded firmware for 427,0, size: 1835112 bytes, waiting for the bootloader...
    If the board does not respond within 1-2 seconds, unplug and re-plug the USB connector.
-   Attempting reboot on /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if00 with baudrate=57600...
-   If the board does not respond, unplug and re-plug the USB connector.
-   Exception creating uploader: [Errno 2] could not open port /dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-CubePilot_CubeOrange+_1D0035000851323138363132-if02'
-   Found board 427,0 bootloader rev 5 on /dev/serial/by-id/usb-CubePilot_CubeOrange+-BL_1D0035000851323138363132-if00
-   Bootloader Protocol: 5
-   OTP:
-     type: 
-     idtype: =00
-     vid: 00000000
-     pid: 00000000
-     coa: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-     sn: 0035001d3132510832313638
-   ChipDes:
-     family: STM32H743/753
-     revision: V
-   Chip:
-     STM32H74x_75x 20036450
-   Info:
-     flash size: 1966080
-     ext flash size: 0
-     board_type: 1063
-     board_rev: 0
-   Identification complete
    
    Erase  : [====================] 100.0% (timeout: 7 seconds) 
    Program: [====================] 100.0%
@@ -420,30 +324,24 @@ And Specific Test Folder will consist of following files.
    Vehicle: Copter, Firmware version: dev-4.6.0
    ```
 
-### Option 5: Psense Cable Test
-- Runs a dedicated test for the Psense cable.
+### Option 5: Reboot Flight Controller
+- Sends Reboot Command to the Flight Controller.
 
-1. **Select Option 5: Press 5 and Press Enter.**
+1. **Select Option 2: Press 2 and Press Enter.**
    ```
-   Enter your choice (1/2/3/4/5): 5
-   Please Ensure Test Firmware and SD Card with Lua Scripts Loaded in FCU
+   Enter your choice (1/2/3/4/5): 2
+   Heartbeat received from the flight controller.
+   Reboot command sent to the flight controller.
    ```
-   
-2. **Testing PSENSE**
-   ```
-   Psense Voltage: PASS
-   Psense Current: PASS
-   PSENSE Overall: PASS
-   ```
-
 ## Summary of Menu Options
 
 - **Option 1: Test All Interfaces**
   - Comprehensive testing, including firmware loading, Psense tests, PWM tests, radio tests, serial and CAN tests.
   - Generates a detailed test report.
 
-- **Option 2: Reboot Flight Controller**
-  - Sends a reboot command to the flight controller.
+- **Option 2: Psense Cable Test**
+  - Runs a dedicated test for the Psense cable.
+  - Evaluates and confirms the status of the Psense cable.
 
 - **Option 3: Load Release Firmware**
   - Loads the release firmware onto the flight controller.
@@ -453,31 +351,30 @@ And Specific Test Folder will consist of following files.
   - Loads the test firmware onto the flight controller.
   - Verifies firmware.
 
-- **Option 5: Psense Cable Test**
-  - Runs a dedicated test for the Psense cable.
-  - Evaluates and confirms the status of the Psense cable.
-
+- **Option 5: Reboot Flight Controller**
+  - Sends a reboot command to the flight controller.
+  
 This documentation provides a clear and detailed guide for setting up and running tests using the `FlightControllerTestSuite`, ensuring that all steps are followed accurately for successful testing and reporting.
 
 ## Generated Reports:
-**Production Test Folder:** This is created on the desktop and is named Production_Test.
+**Production Test Folder:** This is created on the desktop inside FlightControllerTestSuite folder and is named Production_Test.
 
 **Specific Test Folder:** Each run of run_all_tests creates a folder named {qr_code}_{timestamp} inside the Production_Test folder on the desktop. The timestamp ensures uniqueness.
 
 **
 
-Log Directory:** The LOG_DIR is by default set to /tmp, but can be customized by setting the LOG_DIR environment variable.
+Log Directory:** The LOG_DIR is by default set to ~/Desktop/Production_Test/Specific_Test_Folder, but can be customized by setting the LOG_DIR environment variable.
 
 **Example:**
 If you run the run_all_tests function with a QR code test123 at 2023-10-05_12-00-00, the specific log file paths would be:
 
 **General MAVProxy logs:** ~/Desktop/Production_Test/test123_2023-10-05_12-00-00/mavproxy_logs.txt
 
-**PSENSE Test logs:** /tmp/mavproxy_psense_logs.txt
+**PSENSE Test logs:** ~/Desktop/Production_Test/test123_2023-10-05_12-00-00/mavproxy_psense_logs.txt
 
-**ADC Test logs:** /tmp/mavproxy_adc_logs.txt
+**ADC Test logs:** ~/Desktop/Production_Test/test123_2023-10-05_12-00-00/mavproxy_adc_logs.txt
 
-**I2C Test logs:** /tmp/mavproxy_i2c_logs.txt
+**I2C Test logs:** ~/Desktop/Production_Test/test123_2023-10-05_12-00-00/mavproxy_i2c_logs.txt
 You can modify these paths if needed by changing the relevant lines in the script. For instance, to change the LOG_DIR to /var/log/flight_tests, you can set it in the environment variables or modify the script directly:
 ```
 LOG_DIR = os.getenv('LOG_DIR', '/var/log/flight_tests')
