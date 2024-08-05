@@ -383,87 +383,6 @@ def generate_reports(json_path):
     except subprocess.CalledProcessError as e:
         print(f"{Fore.RED}An error occurred while executing the report generation script: {e}{Style.RESET_ALL}")
 
-def test_psense_cable(component_status, log_file_path):
-    firmware_version = get_firmware_version()
-    print(firmware_version)
-
-    if "dev-4.6.0" not in firmware_version:
-        load_firmware(FIRMWARE_TEST_PATH, "Test")
-    
-    print(get_firmware_version())
-
-    cube_orange_port = find_cube_orange_port()
-    if cube_orange_port is None:
-        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
-        return
-    
-    print(f"\n{Fore.CYAN}Testing PSENSE Cable{Style.RESET_ALL}\n")
-    mavproxy_process = connect_mavproxy(cube_orange_port)
-    
-    finished_event = threading.Event()
-    
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
-    thread.start()
-    finished_event.wait(15)  # Timeout after 15 seconds
-    if not finished_event.is_set():
-        print(f"{Fore.RED}No messages received for PSENSE within timeout.{Style.RESET_ALL}")
-        update_status("Psense Voltage", "NO MESSAGE", component_status)
-        update_status("Psense Current", "NO MESSAGE", component_status)
-        update_status("PSENSE Overall", "NO MESSAGE", component_status)
-    mavproxy_process.terminate()
-    keyboard = Controller()
-    keyboard.press('\n')
-    keyboard.release('\n')
-    print_status({"Psense Voltage": component_status.get("Psense Voltage", "NO MESSAGE"), "Psense Current": component_status.get("Psense Current", "NO MESSAGE"), "PSENSE Overall": component_status.get("PSENSE Overall", "NO MESSAGE")})
-
-def test_adc(component_status, log_file_path):
-    cube_orange_port = find_cube_orange_port()
-    if cube_orange_port is None:
-        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
-        return
-    
-    print(f"\n{Fore.CYAN}6. Testing ADC{Style.RESET_ALL}\n")
-    mavproxy_process = connect_mavproxy(cube_orange_port)
-    
-    finished_event = threading.Event()
-    
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_adc_output), daemon=True)
-    thread.start()
-    finished_event.wait(15)  # Timeout after 15 seconds
-    if not finished_event.is_set():
-        print(f"{Fore.RED}No messages received for ADC within timeout.{Style.RESET_ALL}")
-        update_status("ADC", "NO MESSAGE", component_status)
-    mavproxy_process.terminate()
-    keyboard = Controller()
-    keyboard.press('\n')
-    keyboard.release('\n')
-    print_status({"ADC": component_status.get("ADC", "NO MESSAGE")})
-
-def test_i2c(component_status, log_file_path):
-    cube_orange_port = find_cube_orange_port()
-    if cube_orange_port is None:
-        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
-        return
-    
-    print(f"\n{Fore.CYAN}7. Testing I2C{Style.RESET_ALL}\n")
-    mavproxy_process = connect_mavproxy(cube_orange_port)
-    
-    finished_event = threading.Event()
-    
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_i2c_output), daemon=True)
-    thread.start()
-    finished_event.wait(15)  # Timeout after 15 seconds
-    if not finished_event.is_set():
-        print(f"{Fore.RED}No messages received for I2C within timeout.{Style.RESET_ALL}")
-        update_status("I2C1 GPS1", "NO MESSAGE", component_status)
-        update_status("I2C0 GPS2", "NO MESSAGE", component_status)
-        update_status("I2C2 PORT", "NO MESSAGE", component_status)
-    mavproxy_process.terminate()
-    keyboard = Controller()
-    keyboard.press('\n')
-    keyboard.release('\n')
-    print_status({"I2C1 GPS1": component_status.get("I2C1 GPS1", "NO MESSAGE"), "I2C0 GPS2": component_status.get("I2C0 GPS2", "NO MESSAGE"), "I2C2 PORT": component_status.get("I2C2 PORT", "NO MESSAGE")})
-
 def test_pwm_outputs(master):
     print(f"\n{Fore.CYAN}1. Running PWM AUX and MAIN Out Tests, Observe LEDs on Testjig...{Style.RESET_ALL}\n")
     def set_servo_function(servo, function):
@@ -529,6 +448,143 @@ def test_radio_status(component_status):
         keyboard.release('\n')
     print_status({"PPM and SBUSo": component_status["PPM and SBUSo"]})
 
+def test_psense_cable(component_status, log_file_path):
+    firmware_version = get_firmware_version()
+    print(firmware_version)
+
+    if "dev-4.6.0" not in firmware_version:
+        load_firmware(FIRMWARE_TEST_PATH, "Test")
+    
+    print(get_firmware_version())
+
+    cube_orange_port = find_cube_orange_port()
+    if cube_orange_port is None:
+        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+        return
+    
+    print(f"\n{Fore.CYAN}Testing PSENSE Cable{Style.RESET_ALL}\n")
+    mavproxy_process = connect_mavproxy(cube_orange_port)
+    
+    finished_event = threading.Event()
+    
+    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
+    thread.start()
+    finished_event.wait(15)  # Timeout after 15 seconds
+    if not finished_event.is_set():
+        print(f"{Fore.RED}No messages received for PSENSE within timeout.{Style.RESET_ALL}")
+        update_status("Psense Voltage", "NO MESSAGE", component_status)
+        update_status("Psense Current", "NO MESSAGE", component_status)
+        update_status("PSENSE Overall", "NO MESSAGE", component_status)
+    mavproxy_process.terminate()
+    keyboard = Controller()
+    keyboard.press('\n')
+    keyboard.release('\n')
+    print_status({"Psense Voltage": component_status.get("Psense Voltage", "NO MESSAGE"), "Psense Current": component_status.get("Psense Current", "NO MESSAGE"), "PSENSE Overall": component_status.get("PSENSE Overall", "NO MESSAGE")})
+
+def test_psense(component_status, log_file_path, retries=3):
+    for attempt in range(retries):
+        cube_orange_port = find_cube_orange_port()
+        if cube_orange_port is None:
+            print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+            return
+        
+        print(f"\n{Fore.CYAN}5. Testing PSENSE (Attempt {attempt + 1}){Style.RESET_ALL}\n")
+        mavproxy_process = connect_mavproxy(cube_orange_port)
+        
+        finished_event = threading.Event()
+        
+        thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
+        thread.start()
+        finished_event.wait(20)  # Timeout after 20 seconds
+        mavproxy_process.terminate()
+        keyboard = Controller()
+        keyboard.press('\n')
+        keyboard.release('\n')
+        if finished_event.is_set():
+            break
+        print(f"{Fore.RED}No messages received for PSENSE within timeout.{Style.RESET_ALL}")
+        update_status("Psense Voltage", "NO MESSAGE", component_status)
+        update_status("Psense Current", "NO MESSAGE", component_status)
+        update_status("PSENSE Overall", "NO MESSAGE", component_status)
+        if attempt < retries - 1:
+            print(f"{Fore.YELLOW}Retrying PSENSE test...{Style.RESET_ALL}")
+    print_status({"Psense Voltage": component_status.get("Psense Voltage", "NO MESSAGE"), "Psense Current": component_status.get("Psense Current", "NO MESSAGE"), "PSENSE Overall": component_status.get("PSENSE Overall", "NO MESSAGE")})
+
+def test_adc(component_status, log_file_path, retries=3):
+    for attempt in range(retries):
+        cube_orange_port = find_cube_orange_port()
+        if cube_orange_port is None:
+            print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+            return
+        
+        print(f"\n{Fore.CYAN}6. Testing ADC (Attempt {attempt + 1}){Style.RESET_ALL}\n")
+        mavproxy_process = connect_mavproxy(cube_orange_port)
+        
+        finished_event = threading.Event()
+        
+        thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_adc_output), daemon=True)
+        thread.start()
+        finished_event.wait(20)  # Timeout after 20 seconds
+        mavproxy_process.terminate()
+        keyboard = Controller()
+        keyboard.press('\n')
+        keyboard.release('\n')
+        if finished_event.is_set():
+            break
+        print(f"{Fore.RED}No messages received for ADC within timeout.{Style.RESET_ALL}")
+        update_status("ADC", "NO MESSAGE", component_status)
+        if attempt < retries - 1:
+            print(f"{Fore.YELLOW}Retrying ADC test...{Style.RESET_ALL}")
+    print_status({"ADC": component_status.get("ADC", "NO MESSAGE")})
+
+def test_i2c(component_status, log_file_path, retries=3):
+    for attempt in range(retries):
+        cube_orange_port = find_cube_orange_port()
+        if cube_orange_port is None:
+            print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
+            return
+        
+        print(f"\n{Fore.CYAN}7. Testing I2C (Attempt {attempt + 1}){Style.RESET_ALL}\n")
+        mavproxy_process = connect_mavproxy(cube_orange_port)
+        
+        finished_event = threading.Event()
+        
+        thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_i2c_output), daemon=True)
+        thread.start()
+        finished_event.wait(20)  # Timeout after 20 seconds
+        mavproxy_process.terminate()
+        keyboard = Controller()
+        keyboard.press('\n')
+        keyboard.release('\n')
+        if finished_event.is_set():
+            break
+        print(f"{Fore.RED}No messages received for I2C within timeout.{Style.RESET_ALL}")
+        update_status("I2C1 GPS1", "NO MESSAGE", component_status)
+        update_status("I2C0 GPS2", "NO MESSAGE", component_status)
+        update_status("I2C2 PORT", "NO MESSAGE", component_status)
+        if attempt < retries - 1:
+            print(f"{Fore.YELLOW}Retrying I2C test...{Style.RESET_ALL}")
+    print_status({"I2C1 GPS1": component_status.get("I2C1 GPS1", "NO MESSAGE"), "I2C0 GPS2": component_status.get("I2C0 GPS2", "NO MESSAGE"), "I2C2 PORT": component_status.get("I2C2 PORT", "NO MESSAGE")})
+
+def precheck():
+    print(f"\n\n{Fore.CYAN}Precheck:{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}1. Please Ensure all the Hardware Connections are proper.{Style.RESET_ALL}")
+#    print(f"{Fore.YELLOW}2. SD Card with Lua Scripts is Loaded in Cube.{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}2. Micro USB and Type-C USB is connected to Host Computer.{Style.RESET_ALL}")
+    input(f"\n{Fore.CYAN}Press Enter to Continue.{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.YELLOW}Waiting for adb connection...{Style.RESET_ALL}")
+    try:
+        result = subprocess.run(['adb', 'wait-for-device'], timeout=60, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"{Fore.GREEN}ADB connection established. Devices are ready. Proceeding for test.{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}adb connection is not proper. Please check and then rerun the test.{Style.RESET_ALL}")
+            exit(1)
+    except subprocess.TimeoutExpired:
+        print(f"{Fore.RED}adb connection couldn't be estabilished. Please check the connection and try again.{Style.RESET_ALL}")
+        exit(1)
+
 def main_menu():
     print(f"\n{Fore.CYAN}Select an option:{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}1. Test All Interfaces{Style.RESET_ALL}")
@@ -549,7 +605,7 @@ def run_all_tests(qr_code):
     specific_folder_path = os.path.join(PRODUCTION_TEST_FOLDER, folder_name)
     os.makedirs(specific_folder_path, exist_ok=True)
     log_file_path = os.path.join(specific_folder_path, "mavproxy_logs.txt")
-
+    
     firmware_version = get_firmware_version()
     print(firmware_version)
 
@@ -569,7 +625,17 @@ def run_all_tests(qr_code):
     component_status.update(pwm_results)
     
     test_radio_status(component_status)
-    
+    print(f"\n{Fore.YELLOW}Waiting for adb connection...{Style.RESET_ALL}")
+    try:
+        result = subprocess.run(['adb', 'wait-for-device'], timeout=60, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"{Fore.GREEN}ADB connection established. Devices are ready. Proceeding for test.{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}adb connection is not proper. Please check and then rerun the test.{Style.RESET_ALL}")
+            exit(1)
+    except subprocess.TimeoutExpired:
+        print(f"{Fore.RED}adb connection couldn't be estabilished. Please check the connection and try again.{Style.RESET_ALL}")
+        exit(1)
     print(f"\n{Fore.CYAN}3. Starting Serial Tests through Flight Computer...{Style.RESET_ALL}\n")
     integrate_serial_test(component_status, 1, [0, 0])
     integrate_serial_2_test(component_status)
@@ -582,7 +648,7 @@ def run_all_tests(qr_code):
     integrate_can_test(component_status, 1, 1, 1)
     integrate_can_test(component_status, 2, 0, 0)
     print_status({f"CAN {i}": component_status[f"CAN {i}"] for i in range(1, 3)})
-
+    
     test_psense(component_status, os.path.join(specific_folder_path, "mavproxy_psense_logs.txt"))
 
     test_adc(component_status, os.path.join(specific_folder_path, "mavproxy_adc_logs.txt"))
@@ -590,50 +656,6 @@ def run_all_tests(qr_code):
     test_i2c(component_status, os.path.join(specific_folder_path, "mavproxy_i2c_logs.txt"))
 
     return component_status, specific_folder_path, True
-
-def test_psense(component_status, log_file_path):
-    cube_orange_port = find_cube_orange_port()
-    if cube_orange_port is None:
-        print(f"{Fore.RED}CubeOrangePlus not found.{Style.RESET_ALL}")
-        return
-    
-    print(f"\n{Fore.CYAN}5. Testing PSENSE{Style.RESET_ALL}\n")
-    mavproxy_process = connect_mavproxy(cube_orange_port)
-    
-    finished_event = threading.Event()
-    
-    thread = threading.Thread(target=read_output, args=(mavproxy_process, component_status, log_file_path, finished_event, parse_psense_output), daemon=True)
-    thread.start()
-    finished_event.wait(15)  # Timeout after 15 seconds
-    if not finished_event.is_set():
-        print(f"{Fore.RED}No messages received for PSENSE within timeout.{Style.RESET_ALL}")
-        update_status("Psense Voltage", "NO MESSAGE", component_status)
-        update_status("Psense Current", "NO MESSAGE", component_status)
-        update_status("PSENSE Overall", "NO MESSAGE", component_status)
-    mavproxy_process.terminate()
-    keyboard = Controller()
-    keyboard.press('\n')
-    keyboard.release('\n')
-    print_status({"Psense Voltage": component_status.get("Psense Voltage", "NO MESSAGE"), "Psense Current": component_status.get("Psense Current", "NO MESSAGE"), "PSENSE Overall": component_status.get("PSENSE Overall", "NO MESSAGE")})
-
-def precheck():
-    print(f"\n\n{Fore.CYAN}Precheck:{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}1. Please Ensure all the Hardware Connections are proper.{Style.RESET_ALL}")
-#    print(f"{Fore.YELLOW}2. SD Card with Lua Scripts is Loaded in Cube.{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}2. Micro USB and Type-C USB is connected to Host Computer.{Style.RESET_ALL}")
-    input(f"\n{Fore.CYAN}Press Enter to Continue.{Style.RESET_ALL}")
-    
-    print(f"\n{Fore.YELLOW}Waiting for adb connection...{Style.RESET_ALL}")
-    try:
-        result = subprocess.run(['adb', 'wait-for-device'], timeout=60, capture_output=True, text=True)
-        if result.returncode == 0:
-            print(f"{Fore.GREEN}ADB connection established. Devices are ready. Proceeding for test.{Style.RESET_ALL}")
-        else:
-            print(f"{Fore.RED}adb connection is not proper. Please check and then rerun the test.{Style.RESET_ALL}")
-            exit(1)
-    except subprocess.TimeoutExpired:
-        print(f"{Fore.RED}adb connection couldn't be estabilished. Please check the connection and try again.{Style.RESET_ALL}")
-        exit(1)
 
 def main():
     precheck()
